@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Lax Jump 🥍</title>
+<!-- Apple home-screen web app support -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Lax Jump">
+<meta name="theme-color" content="#1c7a3c">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%231c7a3c'/%3E%3Ctext x='50' y='66' font-size='52' text-anchor='middle'%3E%F0%9F%A5%8D%3C/text%3E%3C/svg%3E">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    height: 100%;
+    overflow: hidden;
+    background: #0e3d1e;
+    touch-action: none;
+    -webkit-user-select: none;
+    user-select: none;
+    font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
+  }
+  #game {
+    display: block;
+    margin: 0 auto;
+    background: #7ec850;
+  }
+  #wrap {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+</style>
+</head>
+<body>
+<div id="wrap"><canvas id="game"></canvas></div>
+<script>
+(() => {
+"use strict";
+
+// ---------- Setup ----------
+const W = 400, H = 640;
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+function resize() {
+  const scale = Math.min(window.innerWidth / W, window.innerHeight / H);
+  canvas.width = W * devicePixelRatio;
+  canvas.height = H * devicePixelRatio;
+  canvas.style.width = W * scale + "px";
+  canvas.style.height = H * scale + "px";
+  ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+}
+window.addEventListener("resize", resize);
+resize();
+
+// ---------- Game state ----------
+const GRAVITY = 0.32;
+const JUMP_V = -11.5;
+const BALL_BOOST_V = -19;
+const MOVE_ACC = 0.55;
+const MAX_VX = 6;
+
+let state = "title"; // title | playing | gameover
+let player, platforms, balls, defenders, cameraY, score, best, tiltX;
+best = +(localStorage.getItem("laxjump_best") || 0);
+tiltX = 0;
+
+const PLAT_W = 78, PLAT_H = 16;
+
+function newPlatform(x, y, type) {
+  return {
+    x, y, type,                  // normal | moving | cracked
+    vx: type === "moving" ? (Math.random() < 0.5 ? -1.4 : 1.4) : 0,
+    broken: false,
+    hasBall: type === "normal" && Math.random() < 0.10,
+  };
+}
+
+function reset() {
+  player = {
+    x: W / 2, y: H - 120,
+    vx: 0, vy: JUMP_V,
+    facing: 1,
+    shooting: 0,   // frames of "shot" animation after ball boost
+  };
+  platforms = [];
+  balls = [];
+  defenders = [];
+  cameraY = 0;
+  score = 0;
+
+  // starting platform directly under player, then fill upward
+  platforms.push(newPlatform(W / 2 - PLAT_W / 2, H - 80, "normal"));
+  let y = H - 150;
+  while (y > -H) {
+    spawnPlatformAt(y);
+    y -= rand(55, 95);
+  }
+}
+
+function rand(a, b) { return a + Math.random() * (b - a); }
+
+function spawnPlatformAt(y) {
+  const difficulty = Math.min(score / 8000, 1);
+  let type = "normal";
+  const r = Math.random();
+  if (r < 0.12 + difficulty * 0.18) type = "moving";
+  else if (r < 0.24 + difficulty * 0.3) type = "cracked";
+  platforms.push(newPlatform(rand(8, W - PLAT_W - 8), y, type));
+
+  // occasional defender (opposing team) hovering above high platforms
+  if (score > 1500 && Math.random() < 0.04 + difficulty * 0.05) {
+    defenders.push({ x: rand(40, W - 40), y: y - 60, t: Math.random() * 6.28 });
+  }
+}
+
+// ---------- Input ----------
+const keys = {};
+window.addEventListener("keydown", e => {
+  keys[e.key] = true;
+  if (state !== "playing" && (e.key === " " || e.key === "Enter")) start();
+});
+window.addEventListener("keyup", e => keys[e.key] = false);
+
+let touchDir = 0;
+window.addEventListener("touchstart", e => {
+  if (state !== "playing") { start(); return; }
+  touchDir = e.touches[0].clientX < window.innerWidth / 2 ? -1 : 1;
+}, { passive: false });
+window.addEventListener("touchmove", e => {
+  if (e.touches.length) touchDir = e.touches[0].clientX < window.innerWidth / 2 ? -1 : 1;
+  e.preventDefault();
+}, { passive: false });
+window.addEventListener("touchend", () => touchDir = 0);
+window.addEventListener("mousedown", () => { if (state !== "playing") start(); });
+
+// Tilt controls (iOS 13+ needs permission, requested on first tap)
+let tiltPermissionAsked = false;
+function enableTilt() {
+  if (tiltPermissionAsked) return;
+  tiltPermissionAsked = true;
+  if (typeof DeviceOrientationEvent !== "undefined" &&
+      typeof DeviceOrientationEvent.requestPermission === "function") {
+    DeviceOrientationEvent.requestPermission().then(p => {
+      if (p === "granted") listenTilt();
+    }).catch(() => {});
+  } else {
+    listenTilt();
+  }
+}
+function listenTilt() {
+  window.addEventListener("deviceorientation", e => {
+    if (e.gamma != null) tiltX = Math.max(-1, Math.min(1, e.gamma / 22));
+  });
+}
+
+function start() {
+  enableTilt();
+  reset();
+  state = "playing";
+}
+
+// ---------- Update ----------
+function update() {
+  if (state !== "playing") return;
+
+  // horizontal control: keys > touch > tilt
+  let dir = 0;
+  if (keys["ArrowLeft"] || keys["a"]) dir = -1;
+  else if (keys["ArrowRight"] || keys["d"]) dir = 1;
+  else if (touchDir) dir = touchDir;
+  else dir = tiltX;
+
+  player.vx += dir * MOVE_ACC;
+  player.vx *= 0.94;
+  player.vx = Math.max(-MAX_VX, Math.min(MAX_VX, player.vx));
+  if (Math.abs(player.vx) > 0.3) player.facing = player.vx > 0 ? 1 : -1;
+
+  player.vy += GRAVITY;
+  player.x += player.vx;
+  player.y += player.vy;
+  if (player.shooting > 0) player.shooting--;
+
+  // wrap horizontally
+  if (player.x < -20) player.x = W + 20;
+  if (player.x > W + 20) player.x = -20;
+
+  // platform collisions (only while falling)
+  if (player.vy > 0) {
+    for (const p of platforms) {
+      if (p.broken) continue;
+      if (player.x > p.x - 14 && player.x < p.x + PLAT_W + 14 &&
+          player.y + 28 > p.y && player.y + 28 < p.y + PLAT_H + player.vy + 2) {
+        if (p.type === "cracked") {
+          p.broken = true;
+          continue;
+        }
+        if (p.hasBall) {
+          p.hasBall = false;
+          player.vy = BALL_BOOST_V;
+          player.shooting = 30;
+        } else {
+          player.vy = JUMP_V;
+        }
+        player.y = p.y - 28;
+        break;
+      }
+    }
+  }
+
+  // moving platforms
+  for (const p of platforms) {
+    if (p.type === "moving") {
+      p.x += p.vx;
+      if (p.x < 4 || p.x > W - PLAT_W - 4) p.vx *= -1;
+    }
+  }
+
+  // defenders drift side to side; hitting one ends the run
+  for (const d of defenders) {
+    d.t += 0.03;
+    d.x += Math.sin(d.t) * 1.2;
+    if (Math.abs(player.x - d.x) < 26 && Math.abs(player.y - d.y) < 32 && player.shooting === 0) {
+      gameOver();
+    }
+  }
+
+  // camera follows player upward
+  const targetCam = player.y - H * 0.42;
+  if (targetCam < cameraY) {
+    cameraY = targetCam;
+    score = Math.max(score, Math.floor(-cameraY));
+  }
+
+  // recycle platforms / defenders below the screen, spawn new ones above
+  platforms = platforms.filter(p => p.y < cameraY + H + 40 && !(p.broken && p.y > cameraY + H));
+  defenders = defenders.filter(d => d.y < cameraY + H + 40);
+  let topY = Math.min(...platforms.map(p => p.y));
+  while (topY > cameraY - 60) {
+    const gap = rand(55, 95 + Math.min(score / 400, 40));
+    topY -= gap;
+    spawnPlatformAt(topY);
+  }
+
+  // fall off the bottom
+  if (player.y > cameraY + H + 60) gameOver();
+}
+
+function gameOver() {
+  state = "gameover";
+  if (score > best) {
+    best = score;
+    localStorage.setItem("laxjump_best", best);
+  }
+}
+
+// ---------- Drawing ----------
+function drawField() {
+  // turf with mowing stripes
+  for (let i = 0; i < 10; i++) {
+    ctx.fillStyle = i % 2 ? "#7ec850" : "#74bd49";
+    const stripeY = ((i * 80 - (cameraY * 0.3 % 160)) % 800) - 80;
+    ctx.fillRect(0, stripeY, W, 80);
+  }
+  // faint field lines scrolling by
+  ctx.strokeStyle = "rgba(255,255,255,0.35)";
+  ctx.lineWidth = 3;
+  for (let i = 0; i < 4; i++) {
+    const ly = ((i * 220 - (cameraY * 0.5 % 220)) % 880) - 110;
+    ctx.beginPath();
+    ctx.moveTo(0, ly);
+    ctx.lineTo(W, ly);
+    ctx.stroke();
+  }
+}
+
+function drawStickPlatform(p) {
+  const y = p.y - cameraY;
+  ctx.save();
+  ctx.translate(p.x, y);
+
+  // shaft
+  let shaftColor = "#c9c9c9";
+  if (p.type === "moving") shaftColor = "#3b7dd8";
+  if (p.type === "cracked") shaftColor = "#a07444";
+  ctx.fillStyle = shaftColor;
+  ctx.fillRect(0, 6, PLAT_W - 18, 7);
+  ctx.strokeStyle = "rgba(0,0,0,0.25)";
+  ctx.lineWidth = 1;
+  ctx.strokeRect(0, 6, PLAT_W - 18, 7);
+
+  if (p.type === "cracked" && !p.broken) {
+    ctx.strokeStyle = "#5a3d1e";
+    ctx.beginPath();
+    ctx.moveTo(28, 6); ctx.lineTo(34, 13); ctx.moveTo(34, 6); ctx.lineTo(30, 13);
+    ctx.stroke();
+  }
+
+  // head (rounded triangle-ish scoop at the right end)
+  ctx.fillStyle = "#f5f5f5";
+  ctx.strokeStyle = "#888";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(PLAT_W - 18, 2);
+  ctx.quadraticCurveTo(PLAT_W + 4, -2, PLAT_W, 9);
+  ctx.quadraticCurveTo(PLAT_W + 4, 20, PLAT_W - 18, 17);
+  ctx.closePath();
+  ctx.stroke();
+  // mesh
+  ctx.strokeStyle = "#bbb";
+  ctx.lineWidth = 1;
+  for (let i = 0; i < 3; i++) {
+    ctx.beginPath();
+    ctx.moveTo(PLAT_W - 16 + i * 5, 3);
+    ctx.lineTo(PLAT_W - 16 + i * 5, 16);
+    ctx.stroke();
+  }
+
+  // ball power-up resting on the platform
+  if (p.hasBall) {
+    ctx.fillStyle = "#fff04d";
+    ctx.beginPath();
+    ctx.arc(PLAT_W / 2 - 8, -4, 7, 0, 6.28);
+    ctx.fill();
+    ctx.strokeStyle = "#c8b800";
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawPlayer() {
+  const x = player.x, y = player.y - cameraY;
+  const f = player.facing;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(f, 1);
+
+  // boost trail when ball-shot is active
+  if (player.shooting > 0) {
+    ctx.fillStyle = "rgba(255,240,77,0.5)";
+    for (let i = 1; i <= 3; i++) {
+      ctx.beginPath();
+      ctx.arc(0, 28 + i * 10, 6 - i, 0, 6.28);
+      ctx.fill();
+    }
+  }
+
+  // legs
+  ctx.strokeStyle = "#1c2f5e";
+  ctx.lineWidth = 5;
+  ctx.beginPath();
+  ctx.moveTo(-4, 12); ctx.lineTo(-8, 26);
+  ctx.moveTo(4, 12); ctx.lineTo(9, 24);
+  ctx.stroke();
+  // cleats
+  ctx.fillStyle = "#222";
+  ctx.fillRect(-13, 24, 9, 5);
+  ctx.fillRect(5, 22, 9, 5);
+
+  // jersey
+  ctx.fillStyle = "#d8332a";
+  ctx.beginPath();
+  ctx.roundRect(-11, -8, 22, 22, 5);
+  ctx.fill();
+  ctx.fillStyle = "#fff";
+  ctx.font = "bold 11px Arial";
+  ctx.textAlign = "center";
+  ctx.fillText("1", 0, 8);
+
+  // arms holding the stick
+  ctx.strokeStyle = "#e8b88a";
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.moveTo(8, -2); ctx.lineTo(18, -10);
+  ctx.moveTo(6, 6); ctx.lineTo(15, 2);
+  ctx.stroke();
+
+  // stick: shaft + head above shoulder
+  ctx.strokeStyle = "#b5b5b5";
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.moveTo(12, 8);
+  ctx.lineTo(24, -22);
+  ctx.stroke();
+  ctx.strokeStyle = "#eee";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.ellipse(27, -29, 7, 10, 0.5, 0, 6.28);
+  ctx.stroke();
+  ctx.strokeStyle = "#ccc";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(23, -34); ctx.lineTo(31, -24);
+  ctx.moveTo(31, -34); ctx.lineTo(23, -24);
+  ctx.stroke();
+  // ball in the pocket during boost
+  if (player.shooting > 0) {
+    ctx.fillStyle = "#fff04d";
+    ctx.beginPath();
+    ctx.arc(27, -29, 4, 0, 6.28);
+    ctx.fill();
+  }
+
+  // helmet
+  ctx.fillStyle = "#fff";
+  ctx.beginPath();
+  ctx.arc(0, -16, 10, 0, 6.28);
+  ctx.fill();
+  ctx.strokeStyle = "#999";
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  // facemask
+  ctx.strokeStyle = "#777";
+  ctx.beginPath();
+  ctx.moveTo(3, -22); ctx.quadraticCurveTo(14, -18, 5, -8);
+  ctx.stroke();
+  for (let i = 0; i < 3; i++) {
+    ctx.beginPath();
+    ctx.moveTo(4 + i * 2, -20 + i * 4);
+    ctx.lineTo(9 + i * 1.5, -19 + i * 4);
+    ctx.stroke();
+  }
+  // helmet stripe
+  ctx.strokeStyle = "#d8332a";
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.arc(0, -16, 9.5, -2.4, -0.7);
+  ctx.stroke();
+
+  ctx.restore();
+}
+
+function drawDefender(d) {
+  const x = d.x, y = d.y - cameraY;
+  ctx.save();
+  ctx.translate(x, y);
+  // jersey (opposing team, navy)
+  ctx.fillStyle = "#1c2f5e";
+  ctx.beginPath();
+  ctx.roundRect(-11, -6, 22, 22, 5);
+  ctx.fill();
+  ctx.fillStyle = "#fff";
+  ctx.font = "bold 10px Arial";
+  ctx.textAlign = "center";
+  ctx.fillText("X", 0, 9);
+  // helmet
+  ctx.fillStyle = "#dfe3ec";
+  ctx.beginPath();
+  ctx.arc(0, -14, 9, 0, 6.28);
+  ctx.fill();
+  ctx.strokeStyle = "#888";
+  ctx.stroke();
+  // long defensive pole held crossways
+  ctx.strokeStyle = "#b5b5b5";
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.moveTo(-30, 4); ctx.lineTo(30, -2);
+  ctx.stroke();
+  ctx.strokeStyle = "#eee";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.ellipse(33, -3, 5, 8, 1.4, 0, 6.28);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawHUD() {
+  ctx.fillStyle = "rgba(255,255,255,0.85)";
+  ctx.fillRect(0, 0, W, 34);
+  ctx.fillStyle = "#1c7a3c";
+  ctx.font = "bold 18px Arial";
+  ctx.textAlign = "left";
+  ctx.fillText("🥍 " + score, 12, 24);
+  ctx.textAlign = "right";
+  ctx.fillStyle = "#666";
+  ctx.font = "14px Arial";
+  ctx.fillText("BEST " + best, W - 12, 23);
+}
+
+function drawGoalDecor(y) {
+  // a lacrosse goal sketched on the title/gameover screens
+  ctx.save();
+  ctx.translate(W / 2, y);
+  ctx.strokeStyle = "#ff7a1a";
+  ctx.lineWidth = 5;
+  ctx.beginPath();
+  ctx.moveTo(-55, 40); ctx.lineTo(-55, -40); ctx.lineTo(55, -40); ctx.lineTo(55, 40);
+  ctx.stroke();
+  ctx.strokeStyle = "rgba(255,255,255,0.8)";
+  ctx.lineWidth = 1;
+  for (let i = -4; i <= 4; i++) {
+    ctx.beginPath();
+    ctx.moveTo(i * 12, -40);
+    ctx.lineTo(i * 7, 38);
+    ctx.stroke();
+  }
+  for (let j = 0; j < 5; j++) {
+    ctx.beginPath();
+    ctx.moveTo(-55 + j * 4, -40 + j * 17);
+    ctx.lineTo(55 - j * 4, -40 + j * 17);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawOverlay(title, sub1, sub2) {
+  ctx.fillStyle = "rgba(14,61,30,0.75)";
+  ctx.fillRect(0, 0, W, H);
+  drawGoalDecor(150);
+  ctx.textAlign = "center";
+  ctx.fillStyle = "#fff04d";
+  ctx.font = "bold 44px Arial";
+  ctx.fillText(title, W / 2, 260);
+  ctx.fillStyle = "#fff";
+  ctx.font = "20px Arial";
+  ctx.fillText(sub1, W / 2, 320);
+  ctx.font = "16px Arial";
+  ctx.fillStyle = "#cde8cd";
+  ctx.fillText(sub2, W / 2, 352);
+  ctx.font = "15px Arial";
+  ctx.fillText("tilt, touch sides, or ← → to move", W / 2, 420);
+  ctx.fillText("🟡 scoop a ball for a shot-boost", W / 2, 446);
+  ctx.fillText("⚔️ dodge the long-pole defenders", W / 2, 472);
+  ctx.fillStyle = "#fff";
+  ctx.font = "bold 19px Arial";
+  ctx.fillText("TAP / SPACE TO PLAY", W / 2, 540);
+}
+
+function draw() {
+  drawField();
+  if (state === "title") {
+    drawOverlay("LAX JUMP", "Doodle-jump, lacrosse style", "best: " + best);
+  } else {
+    for (const p of platforms) if (!p.broken) drawStickPlatform(p);
+    for (const d of defenders) drawDefender(d);
+    drawPlayer();
+    drawHUD();
+    if (state === "gameover") {
+      drawOverlay("CHECKED!", "score: " + score, "best: " + best);
+    }
+  }
+}
+
+// ---------- Loop ----------
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+reset();
+loop();
+
+})();
+</script>
+</body>
+</html>
