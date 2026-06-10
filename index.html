@@ -10,7 +10,8 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Lax Jump">
 <meta name="theme-color" content="#1c7a3c">
-<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%231c7a3c'/%3E%3Ctext x='50' y='66' font-size='52' text-anchor='middle'%3E%F0%9F%A5%8D%3C/text%3E%3C/svg%3E">
+<link rel="apple-touch-icon" sizes="180x180" href="icon.png">
+<link rel="icon" type="image/png" href="icon.png">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body {
@@ -941,19 +942,12 @@ function drawPlayerSprite(x, y, f) {
   ctx.moveTo(23, -31); ctx.lineTo(33, -31);
   ctx.stroke();
 
-  // the flow: long blonde hair streaming out the back of the helmet
-  const wave = Math.sin(t * 0.15) * 2.5;
+  // short blonde hair peeking out under the helmet
   ctx.fillStyle = "#f0c95c";
-  ctx.beginPath();
-  ctx.moveTo(-7, -23);
-  ctx.quadraticCurveTo(-17, -16 + wave, -15, -3 + wave);
-  ctx.quadraticCurveTo(-13, 4 + wave * 0.5, -7, 2);
-  ctx.quadraticCurveTo(-12, -6, -9, -13);
-  ctx.closePath();
-  ctx.fill();
-  ctx.strokeStyle = "#d9a93a"; ctx.lineWidth = 1.5;
-  ctx.beginPath(); ctx.moveTo(-9, -19); ctx.quadraticCurveTo(-15, -10 + wave, -12, -1 + wave); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(-7, -16); ctx.quadraticCurveTo(-12, -9 + wave, -10, -3 + wave); ctx.stroke();
+  ctx.beginPath(); ctx.ellipse(-7, -10, 5, 3.5, 0.5, 0, 6.28); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(1, -9.5, 2.5, 2, 0, 0, 6.28); ctx.fill();
+  ctx.strokeStyle = "#d9a93a"; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(-9, -12); ctx.lineTo(-11, -7); ctx.moveTo(-6, -11); ctx.lineTo(-7, -7); ctx.stroke();
 
   // helmet: red shell, white stripe, visor, chrome cage, chin guard
   ctx.fillStyle = "#d8332a";
@@ -1182,30 +1176,27 @@ function bigText(txt, x, y, size, fill, stroke) {
 }
 
 function drawTitle() {
-  ctx.fillStyle = "rgba(8,30,16,0.45)";
+  ctx.fillStyle = "rgba(8,30,16,0.5)";
   ctx.fillRect(0, 0, W, H);
 
-  const bob = Math.sin(t * 0.06) * 6;
-  bigText("LAX", W / 2, 140 + bob * 0.4, 72, "#fff", "#14532d");
-  bigText("JUMP", W / 2, 205 + bob * 0.4, 58, "#ffd23b", "#7a4d00");
+  const bob = Math.sin(t * 0.06) * 5;
+  bigText("LAX", W / 2, 175 + bob * 0.4, 76, "#fff", "#14532d");
+  bigText("JUMP", W / 2, 243 + bob * 0.4, 60, "#ffd23b", "#7a4d00");
 
-  drawPlayerSprite(W / 2, 290 + bob, 1);
+  // sprite is right-heavy (the stick), so nudge left to center its visual mass
+  drawPlayerSprite(W / 2 - 9, 350 + bob, 1);
 
-  ctx.fillStyle = "#fff";
+  ctx.fillStyle = "rgba(255,255,255,0.8)";
   ctx.font = "15px Arial"; ctx.textAlign = "center";
-  ctx.fillText("📱 tilt  ·  👆 touch sides  ·  ⌨️ ← →", W / 2, 366);
-  ctx.fillText("🟡 balls load your stick — tap a defender to shoot", W / 2, 394);
-  ctx.fillText("🦅 eagle lift   ·   🛡 force field   ·   🥅 goal bounce", W / 2, 420);
-  ctx.fillText("🌀 PIPELINE SEGUE portals warp you up the course", W / 2, 446);
-  ctx.fillText("🟫 wood breaks after one bounce — stomp defenders!", W / 2, 472);
+  ctx.fillText("tilt or touch to steer  ·  tap defenders to shoot", W / 2, 432);
 
   ctx.globalAlpha = 0.6 + 0.4 * Math.sin(t * 0.12);
-  bigText("TAP TO START", W / 2, 548, 26, "#fff", "#14532d");
+  bigText("TAP TO START", W / 2, 510, 26, "#fff", "#14532d");
   ctx.globalAlpha = 1;
 
-  ctx.fillStyle = "rgba(255,255,255,0.7)";
+  ctx.fillStyle = "rgba(255,255,255,0.6)";
   ctx.font = "13px Arial";
-  ctx.fillText("best: " + best, W / 2, 586);
+  ctx.fillText("best  " + best, W / 2, 552);
 }
 
 function drawGameOver() {
