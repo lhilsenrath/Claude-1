@@ -60,15 +60,37 @@ if (typeof CanvasRenderingContext2D !== "undefined" &&
 
 function resize() {
   const scale = Math.min(window.innerWidth / W, window.innerHeight / H);
-  canvas.width = W * devicePixelRatio;
-  canvas.height = H * devicePixelRatio;
+  // cap pixel density at 2x: 3x retina more than doubles the pixels drawn
+  // per frame for no visible gain in this art style
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  canvas.width = W * dpr;
+  canvas.height = H * dpr;
   canvas.style.width = W * scale + "px";
   canvas.style.height = H * scale + "px";
-  ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 }
 window.addEventListener("resize", resize);
 window.addEventListener("orientationchange", resize);
 resize();
+
+// gradients are position-independent (local coords), so build them once
+const GRADS = (() => {
+  const mk = (y0, y1, c0, c1) => {
+    const g = ctx.createLinearGradient(0, y0, 0, y1);
+    g.addColorStop(0, c0); g.addColorStop(1, c1);
+    return g;
+  };
+  const stick = ctx.createLinearGradient(12, 8, 26, -24);
+  stick.addColorStop(0, "#9a9a9a"); stick.addColorStop(1, "#d8d8d8");
+  return {
+    platNormal: mk(5, 14, "#e8e8e8", "#9d9d9d"),
+    platMoving: mk(5, 14, "#6aa9ee", "#2c66bd"),
+    platWood:   mk(5, 14, "#b07a40", "#7c4f22"),
+    jersey:     mk(-10, 10, "#e8433a", "#b3221b"),
+    defJersey:  mk(-8, 14, "#33508f", "#16244a"),
+    stick,
+  };
+})();
 
 // ---------- Helpers ----------
 const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
@@ -743,65 +765,79 @@ function drawBackground() {
   drawStadium();
 }
 
-// The stadium scene at the bottom of the world (scrolls away as you climb)
-function drawStadium() {
-  const gy = H - 46 - cameraY; // turf line, world-fixed
-  if (gy > H + 420 || gy < -80) return;
+// The stadium scene at the bottom of the world (scrolls away as you climb).
+// Baked to an offscreen canvas once — ~200 crowd/net draws per frame was a
+// major cost while the stadium is on screen.
+const STADIUM_TOP = 164; // turf line's y inside the baked canvas
+const STADIUM_H = 410;
+const stadiumCanvas = document.createElement("canvas");
+(function bakeStadium() {
+  stadiumCanvas.width = W * 2;
+  stadiumCanvas.height = STADIUM_H * 2;
+  const c = stadiumCanvas.getContext("2d");
+  c.scale(2, 2);
+  const gy = STADIUM_TOP;
 
   // bleachers
-  ctx.fillStyle = "#8d96a3";
-  ctx.fillRect(0, gy - 150, W, 132);
+  c.fillStyle = "#8d96a3";
+  c.fillRect(0, gy - 150, W, 132);
   for (let r = 0; r < 6; r++) {
-    ctx.fillStyle = r % 2 ? "#7d8693" : "#98a1ae";
-    ctx.fillRect(0, gy - 150 + r * 22, W, 22);
+    c.fillStyle = r % 2 ? "#7d8693" : "#98a1ae";
+    c.fillRect(0, gy - 150 + r * 22, W, 22);
     for (let i = 0; i < 26; i++) {
       const cidx = r * 26 + i;
       const palette = ["#d8332a", "#1c2f5e", "#f0c419", "#3aa657", "#e8e8e8", "#7a4fbf"];
-      ctx.fillStyle = palette[Math.floor(hash(cidx) * palette.length)];
-      ctx.beginPath();
-      ctx.arc(8 + i * 15 + hash(cidx + 500) * 8, gy - 150 + r * 22 + 9 + hash(cidx + 900) * 5, 4, 0, 6.28);
-      ctx.fill();
+      c.fillStyle = palette[Math.floor(hash(cidx) * palette.length)];
+      c.beginPath();
+      c.arc(8 + i * 15 + hash(cidx + 500) * 8, gy - 150 + r * 22 + 9 + hash(cidx + 900) * 5, 4, 0, 6.28);
+      c.fill();
     }
   }
   // pennant string above the crowd
-  ctx.strokeStyle = "#555"; ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.moveTo(0, gy - 152); ctx.lineTo(W, gy - 156); ctx.stroke();
+  c.strokeStyle = "#555"; c.lineWidth = 1;
+  c.beginPath(); c.moveTo(0, gy - 152); c.lineTo(W, gy - 156); c.stroke();
   for (let i = 0; i < 14; i++) {
     const px = 10 + i * 29, py = gy - 153 - i * 0.28;
-    ctx.fillStyle = i % 2 ? "#d8332a" : "#1c2f5e";
-    ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px + 12, py); ctx.lineTo(px + 6, py + 12); ctx.closePath(); ctx.fill();
+    c.fillStyle = i % 2 ? "#d8332a" : "#1c2f5e";
+    c.beginPath(); c.moveTo(px, py); c.lineTo(px + 12, py); c.lineTo(px + 6, py + 12); c.closePath(); c.fill();
   }
 
   // ad board
-  ctx.fillStyle = "#fff";
-  ctx.fillRect(0, gy - 18, W, 18);
-  ctx.fillStyle = "#1c7a3c";
-  ctx.font = "bold 12px Arial"; ctx.textAlign = "center";
-  for (let i = 0; i < 4; i++) ctx.fillText("🥍 LAX JUMP 🥍", 50 + i * 105, gy - 5);
+  c.fillStyle = "#fff";
+  c.fillRect(0, gy - 18, W, 18);
+  c.fillStyle = "#1c7a3c";
+  c.font = "bold 12px Arial"; c.textAlign = "center";
+  for (let i = 0; i < 4; i++) c.fillText("🥍 LAX JUMP 🥍", 50 + i * 105, gy - 5);
 
   // turf
   for (let i = 0; i < 6; i++) {
-    ctx.fillStyle = i % 2 ? "#74bd49" : "#7ec850";
-    ctx.fillRect(0, gy + i * 40, W, 40);
+    c.fillStyle = i % 2 ? "#74bd49" : "#7ec850";
+    c.fillRect(0, gy + i * 40, W, 40);
   }
-  ctx.strokeStyle = "rgba(255,255,255,0.6)";
-  ctx.lineWidth = 3;
-  ctx.beginPath(); ctx.moveTo(0, gy + 90); ctx.lineTo(W, gy + 90); ctx.stroke();
-  ctx.beginPath(); ctx.arc(W / 2, gy + 90, 45, 0, 6.28); ctx.stroke();
+  c.strokeStyle = "rgba(255,255,255,0.6)";
+  c.lineWidth = 3;
+  c.beginPath(); c.moveTo(0, gy + 90); c.lineTo(W, gy + 90); c.stroke();
+  c.beginPath(); c.arc(W / 2, gy + 90, 45, 0, 6.28); c.stroke();
 
   // lacrosse goal on the turf
-  ctx.save();
-  ctx.translate(W / 2, gy + 52);
-  ctx.strokeStyle = "#ff7a1a"; ctx.lineWidth = 4;
-  ctx.beginPath(); ctx.moveTo(-34, 26); ctx.lineTo(-34, -26); ctx.lineTo(34, -26); ctx.lineTo(34, 26); ctx.stroke();
-  ctx.strokeStyle = "rgba(255,255,255,0.75)"; ctx.lineWidth = 1;
+  c.save();
+  c.translate(W / 2, gy + 52);
+  c.strokeStyle = "#ff7a1a"; c.lineWidth = 4;
+  c.beginPath(); c.moveTo(-34, 26); c.lineTo(-34, -26); c.lineTo(34, -26); c.lineTo(34, 26); c.stroke();
+  c.strokeStyle = "rgba(255,255,255,0.75)"; c.lineWidth = 1;
   for (let i = -3; i <= 3; i++) {
-    ctx.beginPath(); ctx.moveTo(i * 10, -26); ctx.lineTo(i * 6, 24); ctx.stroke();
+    c.beginPath(); c.moveTo(i * 10, -26); c.lineTo(i * 6, 24); c.stroke();
   }
   for (let j = 0; j < 4; j++) {
-    ctx.beginPath(); ctx.moveTo(-34 + j * 3, -26 + j * 13); ctx.lineTo(34 - j * 3, -26 + j * 13); ctx.stroke();
+    c.beginPath(); c.moveTo(-34 + j * 3, -26 + j * 13); c.lineTo(34 - j * 3, -26 + j * 13); c.stroke();
   }
-  ctx.restore();
+  c.restore();
+})();
+
+function drawStadium() {
+  const gy = H - 46 - cameraY; // turf line, world-fixed
+  if (gy - STADIUM_TOP > H || gy + (STADIUM_H - STADIUM_TOP) < 0) return;
+  ctx.drawImage(stadiumCanvas, 0, gy - STADIUM_TOP, W, STADIUM_H);
 }
 
 // ---------- Entity drawing ----------
@@ -817,11 +853,8 @@ function drawPlatform(p) {
   ctx.beginPath(); ctx.ellipse(PLAT_W / 2, 16, PLAT_W / 2 - 6, 4, 0, 0, 6.28); ctx.fill();
 
   // shaft
-  let g = ctx.createLinearGradient(0, 5, 0, 14);
-  if (p.type === "moving") { g.addColorStop(0, "#6aa9ee"); g.addColorStop(1, "#2c66bd"); }
-  else if (p.type === "wood") { g.addColorStop(0, "#b07a40"); g.addColorStop(1, "#7c4f22"); }
-  else { g.addColorStop(0, "#e8e8e8"); g.addColorStop(1, "#9d9d9d"); }
-  ctx.fillStyle = g;
+  ctx.fillStyle = p.type === "moving" ? GRADS.platMoving :
+                  p.type === "wood" ? GRADS.platWood : GRADS.platNormal;
   ctx.beginPath(); ctx.roundRect(0, 5, PLAT_W - 16, 9, 4); ctx.fill();
   ctx.strokeStyle = "rgba(0,0,0,0.25)"; ctx.lineWidth = 1; ctx.stroke();
 
@@ -977,9 +1010,7 @@ function drawPlayerSprite(x, y, f) {
   ctx.beginPath(); ctx.roundRect(-10, 8, 20, 9, 3); ctx.fill();
 
   // jersey
-  const jg = ctx.createLinearGradient(0, -10, 0, 10);
-  jg.addColorStop(0, "#e8433a"); jg.addColorStop(1, "#b3221b");
-  ctx.fillStyle = jg;
+  ctx.fillStyle = GRADS.jersey;
   ctx.beginPath(); ctx.roundRect(-11, -9, 22, 19, 5); ctx.fill();
   ctx.fillStyle = "#fff";
   ctx.fillRect(-11, -7, 22, 2.5);
@@ -994,9 +1025,7 @@ function drawPlayerSprite(x, y, f) {
   ctx.beginPath(); ctx.arc(16, 1, 3.5, 0, 6.28); ctx.fill();
 
   // stick
-  const sg = ctx.createLinearGradient(12, 8, 26, -24);
-  sg.addColorStop(0, "#9a9a9a"); sg.addColorStop(1, "#d8d8d8");
-  ctx.strokeStyle = sg; ctx.lineWidth = 4;
+  ctx.strokeStyle = GRADS.stick; ctx.lineWidth = 4;
   ctx.beginPath(); ctx.moveTo(12, 9); ctx.lineTo(25, -24); ctx.stroke();
   ctx.strokeStyle = "#f0f0f0"; ctx.lineWidth = 2;
   ctx.beginPath(); ctx.ellipse(28, -31, 7, 11, 0.45, 0, 6.28); ctx.stroke();
@@ -1124,9 +1153,7 @@ function drawDefender(d) {
   ctx.beginPath(); ctx.moveTo(-4, 14); ctx.lineTo(-7, 22); ctx.moveTo(4, 14); ctx.lineTo(7, 22); ctx.stroke();
 
   // jersey
-  const jg = ctx.createLinearGradient(0, -8, 0, 14);
-  jg.addColorStop(0, "#33508f"); jg.addColorStop(1, "#16244a");
-  ctx.fillStyle = jg;
+  ctx.fillStyle = GRADS.defJersey;
   ctx.beginPath(); ctx.roundRect(-11, -7, 22, 21, 5); ctx.fill();
   ctx.fillStyle = "#fff"; ctx.font = "bold 10px Arial"; ctx.textAlign = "center";
   ctx.fillText("X", 0, 8);
@@ -1313,13 +1340,26 @@ function draw() {
 }
 
 // ---------- Loop ----------
-function loop() {
-  update();
+// Fixed timestep: game logic always runs at 60 steps/sec regardless of the
+// display refresh rate (120Hz phones were running double speed; slow frames
+// were slowing the game down instead of staying constant).
+const STEP = 1000 / 60;
+let lastT = 0, acc = 0;
+function loop(now) {
+  if (now === undefined) now = lastT + STEP;
+  let dt = now - lastT;
+  lastT = now;
+  if (dt < 0) dt = 0;
+  if (dt > 250) dt = 250; // tab was backgrounded; don't fast-forward
+  acc += dt;
+  let n = 0;
+  while (acc >= STEP && n < 5) { update(); acc -= STEP; n++; }
+  if (n === 5) acc = 0; // device can't catch up: drop the backlog, stay smooth
   draw();
   requestAnimationFrame(loop);
 }
 reset();
-loop();
+requestAnimationFrame(loop);
 
 })();
 </script>
