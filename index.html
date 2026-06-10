@@ -96,6 +96,25 @@ function sfx(freq, dur, type, vol, slide) {
     o.start(); o.stop(actx.currentTime + dur);
   } catch (e) {}
 }
+// Original southern-rock style solo for the eagle flight (a Free Bird homage —
+// the real recording is copyrighted, so this riff is our own).
+let soloTimer = null;
+const SOLO = [330, 392, 440, 392, 440, 494, 587, 494,
+              440, 494, 587, 659, 587, 494, 440, 392,
+              330, 392, 440, 587, 659, 784, 659, 587];
+function startEagleSolo() {
+  if (!actx || soloTimer) return;
+  let i = 0;
+  soloTimer = setInterval(() => {
+    sfx(SOLO[i % SOLO.length], 0.22, "sawtooth", 0.030, 0);
+    sfx(SOLO[i % SOLO.length] / 2, 0.22, "triangle", 0.020, 0);
+    i++;
+  }, 150);
+}
+function stopEagleSolo() {
+  if (soloTimer) { clearInterval(soloTimer); soloTimer = null; }
+}
+
 const SND = {
   bounce: () => sfx(300, 0.10, "square", 0.030, 150),
   wood:   () => sfx(120, 0.16, "sawtooth", 0.050, -60),
@@ -121,11 +140,23 @@ const MAX_VX = 6.5;
 const MAX_AMMO = 5;
 const PLAT_W = 78, PLAT_H = 16;
 
+// lax-slang milestone callouts as you climb
+const MILESTONES = [
+  [1000,  "RIPPING IT!"],
+  [2500,  "TOP SHELF!"],
+  [5000,  "...WHERE MOMMA HIDES THE COOKIES"],
+  [7500,  "BAR DOWN!"],
+  [10000, "FULL FLOW MODE"],
+  [15000, "LAX LEGEND"],
+  [20000, "SPOON? NEVER HEARD OF HER"],
+];
+const BLIMP_MSGS = ["GO LAX!", "BAR DOWN!", "RIP IT!", "FLOW CHECK"];
+
 // ---------- State ----------
 let state = "title"; // title | playing | gameover
 let player, platforms, coins, defenders, parts, shots, floats;
 let clouds, birds, blimps, balloons;
-let cameraY, score, ammo, newBest, overAt, lastPortalY, t = 0;
+let cameraY, score, ammo, newBest, overAt, lastPortalY, mileIdx, t = 0;
 let best = +(localStorage.getItem("laxjump_best") || 0);
 let tiltX = 0, tiltSeen = false, isTouch = false;
 
@@ -157,8 +188,8 @@ function spawnPlatformAt(y) {
     else if (ir < 0.05) p.item = "shield";
     else if (ir < 0.14) p.item = "ball";
   }
-  // very rare pipeline segue portal (1-2 per run)
-  if (type === "normal" && y < lastPortalY - 4000 && Math.random() < 0.012) {
+  // pipeline segue portal (a few per run)
+  if (type === "normal" && y < lastPortalY - 2000 && Math.random() < 0.03) {
     p.portal = true;
     p.item = null;
     lastPortalY = y;
@@ -174,11 +205,14 @@ function spawnPlatformAt(y) {
 }
 
 function reset() {
-  player = { x: W / 2, y: H - 130, vx: 0, vy: JUMP_V, facing: 1, eagle: 0, shield: 0 };
+  player = { x: W / 2, y: H - 130, vx: 0, vy: JUMP_V, facing: 1, eagle: 0, shield: 0,
+             // 1-in-20 tribute to the legendary #22 (Gait / Powell at Syracuse)
+             num: Math.random() < 0.05 ? "22" : "1" };
   platforms = []; coins = []; defenders = []; parts = []; shots = []; floats = [];
   clouds = []; birds = []; blimps = []; balloons = [];
-  cameraY = 0; score = 0; ammo = 0; newBest = false;
+  cameraY = 0; score = 0; ammo = 0; newBest = false; mileIdx = 0;
   lastPortalY = H;
+  stopEagleSolo();
 
   platforms.push(newPlatform(W / 2 - PLAT_W / 2, H - 90, "normal"));
   let y = H - 160;
@@ -197,8 +231,8 @@ function burst(x, y, n, color, speed, grav) {
                  life: rand(18, 36), max: 36, c: color, r: rand(1.5, 3.5), g: grav });
   }
 }
-function popup(x, y, txt) {
-  floats.push({ x, y, txt, life: 50, max: 50 });
+function popup(x, y, txt, size) {
+  floats.push({ x, y, txt, size: size || 13, life: 50, max: 50 });
 }
 
 // ---------- Input ----------
@@ -294,6 +328,11 @@ function listenTilt() {
 function update() {
   t++;
   updateDecor();
+  // particles & popups keep animating on overlays (e.g. record confetti)
+  for (const q of parts) { q.x += q.vx; q.y += q.vy; q.vy += q.g; q.life--; }
+  parts = parts.filter(q => q.life > 0);
+  for (const f of floats) { f.y -= 0.7; f.life--; }
+  floats = floats.filter(f => f.life > 0);
   if (state !== "playing") return;
 
   // steering: keys > touch > tilt
@@ -319,6 +358,7 @@ function update() {
     }
     if (player.eagle % 18 === 0) SND.flap();
   } else {
+    stopEagleSolo();
     player.vy += GRAVITY;
   }
   if (player.shield > 0) player.shield--;
@@ -340,6 +380,7 @@ function update() {
           player.vy = NET_V;
           SND.net();
           burst(player.x, p.y, 6, "#ffd23b", 2, 0.1);
+          popup(player.x, p.y - 26, "CHERISHED!", 16);
         } else {
           player.vy = JUMP_V;
           if (p.type === "wood") {
@@ -404,6 +445,8 @@ function update() {
       } else if (p.item === "eagle") {
         player.eagle = EAGLE_FRAMES;
         SND.eagle();
+        startEagleSolo();
+        popup(ix, iy - 14, "FREE BIRD!", 16);
         burst(ix, iy, 14, "#7a5533", 4, 0);
       }
       p.item = null;
@@ -438,7 +481,8 @@ function update() {
         SND.ko();
         burst(s.target.x, s.target.y, 14, "#1c2f5e", 4, 0.2);
         burst(s.target.x, s.target.y - 10, 6, "#ffe34d", 3, 0.1);
-        popup(s.target.x, s.target.y - 20, "+100");
+        popup(s.target.x, s.target.y - 24, "SQUID!", 16);
+        popup(s.target.x, s.target.y - 6, "+100");
       }
     }
     s.x += s.vx; s.y += s.vy; s.life--;
@@ -476,17 +520,18 @@ function update() {
     }
   }
 
-  // particles & popups
-  for (const q of parts) { q.x += q.vx; q.y += q.vy; q.vy += q.g; q.life--; }
-  parts = parts.filter(q => q.life > 0);
-  for (const f of floats) { f.y -= 0.7; f.life--; }
-  floats = floats.filter(f => f.life > 0);
-
   // camera & score
   const targetCam = player.y - H * 0.42;
   if (targetCam < cameraY) {
     cameraY = targetCam;
     score = Math.max(score, Math.floor(-cameraY));
+  }
+
+  // milestone callouts
+  while (mileIdx < MILESTONES.length && score >= MILESTONES[mileIdx][0]) {
+    popup(player.x, player.y - 55, MILESTONES[mileIdx][1], 17);
+    SND.coin();
+    mileIdx++;
   }
 
   // recycle & spawn
@@ -508,9 +553,18 @@ function gameOver() {
   if (state !== "playing") return;
   state = "gameover";
   overAt = performance.now();
+  stopEagleSolo();
   SND.over();
   if (navigator.vibrate) navigator.vibrate(120);
-  if (score > best) { best = score; newBest = true; localStorage.setItem("laxjump_best", best); }
+  if (score > best) {
+    best = score; newBest = true;
+    localStorage.setItem("laxjump_best", best);
+    // confetti for the new record
+    const colors = ["#d8332a", "#ffd23b", "#5be1ff", "#3aa657", "#fff", "#b46cff"];
+    for (let i = 0; i < 5; i++) {
+      burst(rand(40, W - 40), cameraY + rand(80, 300), 12, colors[i % colors.length], 4, 0.12);
+    }
+  }
 }
 
 // ---------- Scenery ----------
@@ -533,7 +587,8 @@ function updateDecor() {
   if (alt > 2000 && alt < 11000 && blimps.length < 1 && Math.random() < 0.002) {
     const fromLeft = Math.random() < 0.5;
     blimps.push({ x: fromLeft ? -90 : W + 90, wy: rand(60, 200) + cameraY * 0.7, p: 0.7,
-                  vx: fromLeft ? 0.35 : -0.35 });
+                  vx: fromLeft ? 0.35 : -0.35,
+                  msg: BLIMP_MSGS[Math.floor(Math.random() * BLIMP_MSGS.length)] });
   }
   // lacrosse-ball hot air balloon
   if (alt > 1500 && alt < 9500 && balloons.length < 1 && Math.random() < 0.0015) {
@@ -639,8 +694,8 @@ function drawBackground() {
     ctx.fillRect(78, -2, 56, 16);
     ctx.scale(f, 1); // un-mirror so banner text reads correctly
     ctx.fillStyle = "#d8332a";
-    ctx.font = "bold 10px Arial"; ctx.textAlign = "center";
-    ctx.fillText("GO LAX!", f * 106, 10);
+    ctx.font = "bold 9px Arial"; ctx.textAlign = "center";
+    ctx.fillText(b.msg || "GO LAX!", f * 106, 10);
     ctx.restore();
   }
 
@@ -919,7 +974,7 @@ function drawPlayerSprite(x, y, f) {
   ctx.fillStyle = "#fff";
   ctx.fillRect(-11, -7, 22, 2.5);
   ctx.font = "bold 11px Arial"; ctx.textAlign = "center";
-  ctx.fillText("1", 0, 7);
+  ctx.fillText((player && player.num) || "1", 0, 7);
 
   // arms + gloves
   ctx.strokeStyle = "#e8b88a"; ctx.lineWidth = 4;
@@ -1116,7 +1171,7 @@ function drawParticles() {
 function drawFloats() {
   for (const f of floats) {
     ctx.globalAlpha = clamp(f.life / f.max, 0, 1);
-    ctx.font = "bold 13px Arial"; ctx.textAlign = "center";
+    ctx.font = "bold " + f.size + "px Arial"; ctx.textAlign = "center";
     ctx.lineWidth = 3; ctx.strokeStyle = "rgba(20,40,20,0.8)";
     ctx.strokeText(f.txt, f.x, f.y - cameraY);
     ctx.fillStyle = "#fff";
