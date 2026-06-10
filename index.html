@@ -212,6 +212,7 @@ function reset() {
   clouds = []; birds = []; blimps = []; balloons = [];
   cameraY = 0; score = 0; ammo = 0; newBest = false; mileIdx = 0;
   lastPortalY = H;
+  callOut = null;
   stopEagleSolo();
 
   platforms.push(newPlatform(W / 2 - PLAT_W / 2, H - 90, "normal"));
@@ -234,6 +235,9 @@ function burst(x, y, n, color, speed, grav) {
 function popup(x, y, txt, size) {
   floats.push({ x, y, txt, size: size || 13, life: 50, max: 50 });
 }
+// One big front-and-center saying at a time; a new one replaces the old
+let callOut = null;
+function callout(txt) { callOut = { txt, life: 70, max: 70 }; }
 
 // ---------- Input ----------
 const keys = {};
@@ -333,6 +337,7 @@ function update() {
   parts = parts.filter(q => q.life > 0);
   for (const f of floats) { f.y -= 0.7; f.life--; }
   floats = floats.filter(f => f.life > 0);
+  if (callOut && --callOut.life <= 0) callOut = null;
   if (state !== "playing") return;
 
   // steering: keys > touch > tilt
@@ -380,7 +385,7 @@ function update() {
           player.vy = NET_V;
           SND.net();
           burst(player.x, p.y, 6, "#ffd23b", 2, 0.1);
-          popup(player.x, p.y - 26, "CHERISHED!", 16);
+          callout("CHERISHED!");
         } else {
           player.vy = JUMP_V;
           if (p.type === "wood") {
@@ -424,7 +429,7 @@ function update() {
       cameraY = Math.min(cameraY, player.y - H * 0.42);
       score = Math.max(score, Math.floor(-cameraY));
       burst(player.x, player.y, 18, "#5be1ff", 5, 0);
-      popup(player.x, player.y - 30, "PIPELINE!");
+      callout("PIPELINE!");
     }
   }
 
@@ -446,7 +451,7 @@ function update() {
         player.eagle = EAGLE_FRAMES;
         SND.eagle();
         startEagleSolo();
-        popup(ix, iy - 14, "FREE BIRD!", 16);
+        callout("FREE BIRD!");
         burst(ix, iy, 14, "#7a5533", 4, 0);
       }
       p.item = null;
@@ -481,7 +486,7 @@ function update() {
         SND.ko();
         burst(s.target.x, s.target.y, 14, "#1c2f5e", 4, 0.2);
         burst(s.target.x, s.target.y - 10, 6, "#ffe34d", 3, 0.1);
-        popup(s.target.x, s.target.y - 24, "SQUID!", 16);
+        callout("SQUID!");
         popup(s.target.x, s.target.y - 6, "+100");
       }
     }
@@ -527,10 +532,11 @@ function update() {
     score = Math.max(score, Math.floor(-cameraY));
   }
 
-  // milestone callouts
+  // milestones fly by on blimp signs in the background
   while (mileIdx < MILESTONES.length && score >= MILESTONES[mileIdx][0]) {
-    popup(player.x, player.y - 55, MILESTONES[mileIdx][1], 17);
-    SND.coin();
+    const fromLeft = Math.random() < 0.5;
+    blimps.push({ x: fromLeft ? -90 : W + 90, wy: rand(80, 220) + cameraY * 0.7, p: 0.7,
+                  vx: fromLeft ? 0.6 : -0.6, msg: MILESTONES[mileIdx][1] });
     mileIdx++;
   }
 
@@ -690,12 +696,16 @@ function drawBackground() {
     ctx.fillRect(-8, 14, 16, 7);
     ctx.strokeStyle = "#666"; ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(46, 0); ctx.lineTo(78, 6); ctx.stroke();
+    const msg = b.msg || "GO LAX!";
+    const bw = Math.max(56, msg.length * 5.6 + 12);
     ctx.fillStyle = "#fff";
-    ctx.fillRect(78, -2, 56, 16);
+    ctx.fillRect(78, -2, bw, 16);
+    ctx.strokeStyle = "#bbb"; ctx.lineWidth = 1;
+    ctx.strokeRect(78, -2, bw, 16);
     ctx.scale(f, 1); // un-mirror so banner text reads correctly
     ctx.fillStyle = "#d8332a";
     ctx.font = "bold 9px Arial"; ctx.textAlign = "center";
-    ctx.fillText(b.msg || "GO LAX!", f * 106, 10);
+    ctx.fillText(msg, f * (78 + bw / 2), 10);
     ctx.restore();
   }
 
@@ -1292,6 +1302,11 @@ function draw() {
     drawPlayer();
     drawFloats();
     drawHUD();
+    if (callOut && state === "playing") {
+      ctx.globalAlpha = clamp(callOut.life / 20, 0, 1);
+      bigText(callOut.txt, W / 2, 160, 34, "#ffd23b", "#7a2d00");
+      ctx.globalAlpha = 1;
+    }
   }
   if (state === "title") drawTitle();
   if (state === "gameover") drawGameOver();
