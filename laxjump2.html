@@ -2599,13 +2599,26 @@ function bigText(txt, x, y, size, fill, stroke) {
   ctx.fillText(txt, x, y);
 }
 
-function drawMenuButton(cx, cy, icon) {
+function drawMenuButton(cx, cy, kind) {
   ctx.fillStyle = "rgba(255,255,255,0.92)";
   ctx.beginPath(); ctx.arc(cx, cy, 19, 0, 6.28); ctx.fill();
   ctx.strokeStyle = "#14532d"; ctx.lineWidth = 2; ctx.stroke();
-  ctx.font = "19px Arial"; ctx.textAlign = "center";
   ctx.fillStyle = "#14532d";
-  ctx.fillText(icon, cx, cy + 7);
+  if (kind === "gear") {
+    for (let i = 0; i < 8; i++) {
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(i * Math.PI / 4);
+      ctx.fillRect(-2.2, -11.5, 4.4, 5);
+      ctx.restore();
+    }
+    ctx.beginPath(); ctx.arc(cx, cy, 7.5, 0, 6.28); ctx.fill();
+    ctx.fillStyle = "rgba(255,255,255,0.92)";
+    ctx.beginPath(); ctx.arc(cx, cy, 3.4, 0, 6.28); ctx.fill();
+  } else {
+    ctx.beginPath(); ctx.arc(cx, cy - 4.5, 4.8, 0, 6.28); ctx.fill();
+    ctx.beginPath(); ctx.arc(cx, cy + 10.5, 8.2, Math.PI, 0); ctx.fill();
+  }
 }
 
 function menuPanel(title) {
@@ -2721,8 +2734,8 @@ function drawTitle() {
   ctx.font = "13px Arial"; ctx.textAlign = "center";
   ctx.fillText(settings.name + "  ·  best " + best, W / 2, 538);
 
-  drawMenuButton(W - 78, 38, "⚙️");
-  drawMenuButton(W - 32, 38, "👤");
+  drawMenuButton(W - 78, 38, "gear");
+  drawMenuButton(W - 32, 38, "person");
 }
 
 function drawRetired() {
