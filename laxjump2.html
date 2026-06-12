@@ -91,7 +91,7 @@ const GRADS = (() => {
     gold:       mk(4, 15, "#f7e08a", "#b8860b"),
     platinum:   mk(4, 15, "#e8ecf2", "#8d97a8"),
     junk:       mk(4, 15, "#8a8f99", "#52565e"),
-    suit:       mk(-9, 10, "#34343e", "#0f0f14"),
+    suit:       mk(-9, 10, "#4e4e5c", "#1e1e26"),
     building:   mk(-16, 18, "#9aa0aa", "#5e646e"),
     stick,
   };
@@ -236,19 +236,29 @@ function spawnPlatformAt(y) {
   const d = difficulty();
   let type = "normal";
   const r = Math.random();
-  if (score > 400 && r < 0.12 + 0.18 * d) type = "moving";
+  if (phase >= 3) {
+    // keep plenty of plain gold bars so items/portals have homes
+    if (r < 0.16) type = "moving";
+    else if (r < 0.32) type = "wood";
+    else if (r < 0.40) type = "net";
+  } else if (score > 400 && r < 0.12 + 0.18 * d) type = "moving";
   else if (score > 600 && r < 0.27 + 0.38 * d) type = "wood";
   else if (score > 800 && r < 0.33 + 0.38 * d) type = "net";
   const p = newPlatform(rand(8, W - PLAT_W - 8), y, type);
 
   if (type === "normal") {
     const ir = Math.random();
-    if (ir < 0.012) p.item = "eagle";
+    if (phase >= 3) {
+      if (ir < 0.05) p.item = "eagle";
+      else if (ir < 0.12) p.item = "shield";
+      else if (ir < 0.26) p.item = "ball";
+    } else if (ir < 0.012) p.item = "eagle";
     else if (ir < 0.05) p.item = "shield";
     else if (ir < 0.14) p.item = "ball";
   }
-  // pipeline segue portal (a few per run)
-  if (type === "normal" && y < lastPortalY - 2000 && Math.random() < 0.03) {
+  // pipeline segue / sourced portal (a few per run)
+  if (type === "normal" && y < lastPortalY - (phase >= 3 ? 1200 : 2000) &&
+      Math.random() < (phase >= 3 ? 0.06 : 0.03)) {
     p.portal = true;
     p.item = null;
     lastPortalY = y;
@@ -522,7 +532,9 @@ function update() {
     const dx = player.x - ix, dy = player.y - iy;
     if (dx * dx + dy * dy < 32 * 32) {
       if (p.item === "ball") {
-        if (ammo < MAX_AMMO) { ammo++; popup(ix, iy, "+1 ball"); }
+        if (ammo < MAX_AMMO) ammo++;
+        if (phase >= 3) { score += 50; popup(ix, iy, "+50"); }
+        else popup(ix, iy, "+1 ball");
         SND.coin();
         burst(ix, iy, 8, "#ffe34d", 2.5, 0.05);
       } else if (p.item === "shield") {
@@ -1105,26 +1117,32 @@ function drawPlatform(p) {
       ctx.moveTo(32, 5); ctx.lineTo(34, 14);
       ctx.stroke();
     }
-    // trampoline: a poor soul on hands and knees holding money up for you
+    // trampoline: a poor soul kneeling, head bowed, both hands raising money
     if (p.type === "net") {
       const cxm = p.w / 2;
-      ctx.strokeStyle = "#c98c5a"; ctx.lineWidth = 4; // arms & legs
-      ctx.beginPath();
-      ctx.moveTo(cxm - 8, -2); ctx.lineTo(cxm - 9, 4);
-      ctx.moveTo(cxm + 9, -2); ctx.lineTo(cxm + 10, 4);
-      ctx.stroke();
-      ctx.strokeStyle = "#6e6e76"; ctx.lineWidth = 7; // hunched back (worn gray shirt)
-      ctx.beginPath(); ctx.moveTo(cxm - 10, -5); ctx.quadraticCurveTo(cxm, -12, cxm + 11, -5); ctx.stroke();
-      ctx.fillStyle = "#c98c5a"; // head, looking down
-      ctx.beginPath(); ctx.arc(cxm - 14, -4, 4.5, 0, 6.28); ctx.fill();
-      // a hand holding bills up
+      // folded legs tucked on the ground
+      ctx.fillStyle = "#4a4a52";
+      ctx.beginPath(); ctx.roundRect(cxm + 1, -4, 13, 6, 3); ctx.fill();
+      ctx.fillStyle = "#2e2e34"; // worn shoe heel
+      ctx.beginPath(); ctx.roundRect(cxm + 11, -4, 4, 5, 1.5); ctx.fill();
+      // torso arched forward and down (worn gray shirt)
+      ctx.strokeStyle = "#6e6e76"; ctx.lineWidth = 8;
+      ctx.beginPath(); ctx.moveTo(cxm + 7, -4); ctx.quadraticCurveTo(cxm - 1, -13, cxm - 8, -6); ctx.stroke();
+      // head bowed toward the ground
+      ctx.fillStyle = "#c98c5a";
+      ctx.beginPath(); ctx.arc(cxm - 12, -3, 4.5, 0, 6.28); ctx.fill();
+      ctx.fillStyle = "#3a2c20"; // hair
+      ctx.beginPath(); ctx.arc(cxm - 13, -4.5, 3.6, 2.4, 6.0); ctx.fill();
+      // both arms raised straight up, hands gripping the stack
       ctx.strokeStyle = "#c98c5a"; ctx.lineWidth = 3;
-      ctx.beginPath(); ctx.moveTo(cxm + 6, -8); ctx.lineTo(cxm + 9, -16); ctx.stroke();
-      ctx.fillStyle = "#3aa657";
-      ctx.fillRect(cxm + 4, -22, 12, 7);
-      ctx.strokeStyle = "#1e6e35"; ctx.lineWidth = 1; ctx.strokeRect(cxm + 4, -22, 12, 7);
-      ctx.fillStyle = "#bfe8c9"; ctx.font = "bold 6px Arial"; ctx.textAlign = "center";
-      ctx.fillText("$", cxm + 10, -16.5);
+      ctx.beginPath();
+      ctx.moveTo(cxm - 4, -10); ctx.lineTo(cxm - 4, -19);
+      ctx.moveTo(cxm + 2, -10); ctx.lineTo(cxm + 3, -19);
+      ctx.stroke();
+      ctx.fillStyle = "#c98c5a";
+      ctx.beginPath(); ctx.arc(cxm - 4, -19, 2, 0, 6.28); ctx.fill();
+      ctx.beginPath(); ctx.arc(cxm + 3, -19, 2, 0, 6.28); ctx.fill();
+      drawCashStack(cxm, -22);
     }
   } else {
     // ----- lacrosse stick platforms -----
@@ -1319,8 +1337,13 @@ function drawPlayerSprite(x, y, f) {
 
   if (phase >= 3) {
     // ----- the buy side fit: black suit, shades -----
+    // soft spotlight halo so the dark suit pops off the black backdrop
+    ctx.fillStyle = "rgba(255,255,255,0.11)";
+    ctx.beginPath(); ctx.arc(0, -2, 36, 0, 6.28); ctx.fill();
+    ctx.fillStyle = "rgba(212,175,55,0.10)";
+    ctx.beginPath(); ctx.arc(0, -2, 25, 0, 6.28); ctx.fill();
     // legs: suit trousers + polished shoes
-    ctx.strokeStyle = "#15151b"; ctx.lineWidth = 5;
+    ctx.strokeStyle = "#23232c"; ctx.lineWidth = 5;
     ctx.beginPath(); ctx.moveTo(-4, 14); ctx.lineTo(-8, 26); ctx.moveTo(4, 14); ctx.lineTo(9, 24); ctx.stroke();
     ctx.fillStyle = "#000";
     ctx.beginPath(); ctx.roundRect(-15, 26, 10, 5, 2); ctx.fill();
@@ -1329,9 +1352,10 @@ function drawPlayerSprite(x, y, f) {
     ctx.fillRect(-13, 27, 4, 1.5);
     ctx.fillRect(8, 25, 4, 1.5);
 
-    // suit jacket
+    // suit jacket (light edge keeps the silhouette readable)
     ctx.fillStyle = GRADS.suit;
     ctx.beginPath(); ctx.roundRect(-11, -9, 22, 25, 5); ctx.fill();
+    ctx.strokeStyle = "#9a9aa8"; ctx.lineWidth = 1.2; ctx.stroke();
     // white shirt + gold tie
     ctx.fillStyle = "#f2f2f2";
     ctx.beginPath(); ctx.moveTo(-3, -8); ctx.lineTo(3, -8); ctx.lineTo(2, 8); ctx.lineTo(-2, 8); ctx.closePath(); ctx.fill();
