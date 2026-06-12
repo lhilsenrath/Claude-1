@@ -602,8 +602,8 @@ function update() {
     if (dx * dx + dy * dy < 32 * 32) {
       if (p.item === "ball") {
         if (ammo < MAX_AMMO) ammo++;
-        if (phase >= 3) { score += 50; popup(ix, iy, "+$$$"); }
-        else popup(ix, iy, "+1 ball");
+        score += 50; // points added quietly; the popup only mentions the pickup
+        popup(ix, iy, phase >= 3 ? "+$$" : "+1 Ball");
         SND.coin();
         burst(ix, iy, 8, "#ffe34d", 2.5, 0.05);
       } else if (p.item === "shield") {
@@ -632,7 +632,7 @@ function update() {
       if (ammo < MAX_AMMO) ammo++;
       SND.coin();
       burst(c.x, c.y, 8, "#ffd23b", 2.5, 0);
-      popup(c.x, c.y, phase >= 3 ? "+$$$" : "+50");
+      popup(c.x, c.y, phase >= 3 ? "+$$" : "+1 Ball");
     }
   }
 
@@ -1419,7 +1419,8 @@ const stadiumCanvas = document.createElement("canvas");
 })();
 
 function drawStadium() {
-  const gy = H - 46 - cameraY; // turf line, world-fixed
+  // turf line sits higher so the whole goal cage is visible at the start
+  const gy = H - 84 - cameraY;
   if (gy - STADIUM_TOP > H || gy + (STADIUM_H - STADIUM_TOP) < 0) return;
   ctx.drawImage(stadiumCanvas, 0, gy - STADIUM_TOP, W, STADIUM_H);
 }
@@ -1565,7 +1566,7 @@ function drawPlatform(p) {
     ctx.beginPath(); ctx.arc(sx, sy2, 2, 0, 6.28); ctx.fill();
 
     // label + arrow pointing at it
-    const lbl = phase >= 3 ? "SOURCED" : "PIPELINE SEGUE";
+    const lbl = phase >= 3 ? "LBO OPPORTUNITY" : "PIPELINE SEGUE";
     ctx.font = "bold 11px Arial"; ctx.textAlign = "center";
     ctx.lineWidth = 3; ctx.strokeStyle = "#3d1166";
     ctx.strokeText(lbl, px, py - 38);
