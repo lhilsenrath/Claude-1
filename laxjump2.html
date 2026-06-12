@@ -749,9 +749,10 @@ function updateBoss() {
   bossShots = bossShots.filter(b => b.life > 0 && b.x > -40 && b.x < W + 40 &&
                                     b.y > cameraY - 60 && b.y < cameraY + H + 60);
 
-  // ammo balls keep spawning around the arena
+  // ammo balls keep spawning around the arena (kept within jumping reach:
+  // the arena bounce tops out ~140px above the floor)
   if (pickups.length < 4 && Math.random() < 0.014) {
-    pickups.push({ x: rand(30, W - 30), y: cameraY + rand(H - 330, H - 95), taken: false });
+    pickups.push({ x: rand(30, W - 30), y: cameraY + rand(H - 225, H - 100), taken: false });
   }
   for (const c of pickups) {
     const dx = player.x - c.x, dy = player.y - c.y;
