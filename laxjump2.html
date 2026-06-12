@@ -448,7 +448,7 @@ const SET_ROWS = [168, 222, 276, 330, 384];
 function settingsTap(px, py) {
   if (py > 452 && py < 500) { savePrefs(); state = "title"; return; }
   let row = -1;
-  for (let i = 0; i < SET_ROWS.length; i++) if (Math.abs(py - SET_ROWS[i]) < 26) row = i;
+  for (let i = 0; i < 4; i++) if (Math.abs(py - SET_ROWS[i]) < 26) row = i;
   if (row === 0 && typeof window.prompt === "function") {
     const v = window.prompt("Username (max 10 characters):", settings.name);
     if (v && v.trim()) settings.name = v.trim().slice(0, 10).toUpperCase();
@@ -459,10 +459,6 @@ function settingsTap(px, py) {
     if (!settings.music) { stopEagleSolo(); stopFinanceTune(); }
   } else if (row === 3) {
     settings.speed = cycle(Object.keys(SPEEDS), settings.speed, 1);
-  } else if (row === 4) {
-    localStorage.removeItem(KEY.scores);
-    localStorage.removeItem(KEY.best);
-    best = 0; lastBoard = [];
   }
   if (row >= 0) { savePrefs(); SND.coin(); }
 }
@@ -2652,7 +2648,6 @@ function drawSettings() {
   menuRow(SET_ROWS[1], "SOUND FX", settings.sfx ? "ON" : "OFF");
   menuRow(SET_ROWS[2], "MUSIC", settings.music ? "ON" : "OFF");
   menuRow(SET_ROWS[3], "SPEED", settings.speed);
-  menuRow(SET_ROWS[4], "RESET SCORES", "TAP");
   doneButton(472);
 }
 
