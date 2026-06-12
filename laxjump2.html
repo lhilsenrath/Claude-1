@@ -279,9 +279,9 @@ function spawnPlatformAt(y) {
   if (type === "normal") {
     const ir = Math.random();
     if (phase >= 3) {
-      if (ir < 0.05) p.item = "eagle";
-      else if (ir < 0.12) p.item = "shield";
-      else if (ir < 0.26) p.item = "ball";
+      if (ir < 0.07) p.item = "eagle";
+      else if (ir < 0.16) p.item = "shield";
+      else if (ir < 0.30) p.item = "ball";
     } else if (ir < 0.012) p.item = "eagle";
     else if (ir < 0.05) p.item = "shield";
     else if (ir < 0.14) p.item = "ball";
@@ -502,12 +502,26 @@ function update() {
     player.eagle--;
     const fade = Math.min(1, player.eagle / 25);
     player.vy = -15 * fade - 4 * (1 - fade);
-    // drifting feathers (phase 3: white powder spraying off the player)
-    if (t % (phase >= 3 ? 2 : 4) === 0) {
-      parts.push({ x: player.x + rand(-18, 18), y: player.y - (phase >= 3 ? rand(-10, 30) : 40),
+    if (phase >= 3) {
+      // a fine glittering powder cloud pouring off the player
+      for (let k = 0; k < 2; k++) {
+        parts.push({ x: player.x + rand(-15, 15), y: player.y + rand(-36, 22),
+                     vx: rand(-0.5, 0.7), vy: rand(0.3, 1.7),
+                     life: rand(18, 42), max: 42,
+                     c: Math.random() < 0.8 ? "rgba(255,255,255,0.92)" : "#cfe4ff",
+                     r: rand(0.8, 2.2), g: 0.015 });
+      }
+      if (t % 6 === 0) {
+        parts.push({ x: player.x + rand(-10, 10), y: player.y - rand(20, 38),
+                     vx: rand(-0.3, 0.3), vy: rand(0.2, 0.8),
+                     life: rand(10, 18), max: 18, c: "#fff", r: rand(2.5, 3.5), g: 0 });
+      }
+    } else if (t % 4 === 0) {
+      // drifting feathers
+      parts.push({ x: player.x + rand(-18, 18), y: player.y - 40,
                    vx: rand(-0.8, 0.8), vy: rand(0.5, 1.5),
                    life: rand(20, 34), max: 34,
-                   c: phase >= 3 ? "rgba(255,255,255,0.9)" : (Math.random() < 0.5 ? "#7a5533" : "#f0ead8"),
+                   c: Math.random() < 0.5 ? "#7a5533" : "#f0ead8",
                    r: rand(1.5, 3), g: 0.02 });
     }
     if (player.eagle % 18 === 0) SND.flap();
@@ -608,6 +622,7 @@ function update() {
         burst(ix, iy, 8, "#ffe34d", 2.5, 0.05);
       } else if (p.item === "shield") {
         player.shield = SHIELD_FRAMES;
+        if (phase >= 3) callout("NICE VEST!");
         SND.shield();
         burst(ix, iy, 12, "#5be1ff", 3, 0);
       } else if (p.item === "eagle") {
@@ -1587,27 +1602,24 @@ function drawPlatform(p) {
     if (p.item === "ball" && phase >= 3) {
       drawCashStack(ix, iy);
     } else if (p.item === "shield" && phase >= 3) {
-      // Peter Millar vest on a hanger
-      ctx.save(); ctx.translate(ix, iy);
-      ctx.fillStyle = "#1f3a5f";
-      ctx.beginPath();
-      ctx.moveTo(-7, -6); ctx.lineTo(-3, -9); ctx.lineTo(3, -9); ctx.lineTo(7, -6);
-      ctx.lineTo(7, 8); ctx.lineTo(-7, 8); ctx.closePath(); ctx.fill();
-      ctx.strokeStyle = "#cfd8e8"; ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(0, -7); ctx.lineTo(0, 8); ctx.stroke(); // zipper
-      ctx.beginPath(); ctx.moveTo(-3, -9); ctx.lineTo(0, -5); ctx.lineTo(3, -9); ctx.stroke(); // collar
+      // the Peter Millar vest, glowing on offer
+      ctx.save(); ctx.translate(ix, iy - 2); ctx.scale(0.75, 0.75);
+      ctx.shadowColor = "rgba(91,225,255,0.9)";
+      ctx.shadowBlur = 9 + Math.sin(t * 0.15) * 3;
+      ctx.fillStyle = "#21406b";
+      vestPath(ctx); ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = "rgba(160,200,240,0.7)"; ctx.lineWidth = 1;
+      ctx.save(); vestPath(ctx); ctx.clip();
+      for (let q = -4; q <= 12; q += 4) {
+        ctx.beginPath(); ctx.moveTo(-11, q); ctx.lineTo(11, q); ctx.stroke();
+      }
+      ctx.restore();
+      ctx.strokeStyle = "#cfd8e8"; ctx.lineWidth = 1.2;
+      ctx.beginPath(); ctx.moveTo(0, -5.5); ctx.lineTo(0, 14); ctx.stroke();
       ctx.restore();
     } else if (p.item === "eagle" && phase >= 3) {
-      // the little baggie
-      ctx.save(); ctx.translate(ix, iy);
-      ctx.fillStyle = "rgba(245,245,250,0.92)";
-      ctx.beginPath(); ctx.roundRect(-6, -7, 12, 14, 3); ctx.fill();
-      ctx.strokeStyle = "#aaa"; ctx.lineWidth = 1; ctx.stroke();
-      ctx.fillStyle = "#fff";
-      ctx.fillRect(-6, -8, 12, 3);
-      ctx.fillStyle = "rgba(255,255,255,0.95)";
-      ctx.beginPath(); ctx.arc(-1, 2, 3.5, 0, 6.28); ctx.arc(2, 0, 3, 0, 6.28); ctx.fill();
-      ctx.restore();
+      drawBaggie(ix, iy, 1);
     } else if (p.item === "ball") {
       ctx.fillStyle = "#ffe34d";
       ctx.beginPath(); ctx.arc(ix, iy, 7, 0, 6.28); ctx.fill();
@@ -1657,6 +1669,55 @@ function drawCashStack(x, y) {
   ctx.font = "bold 7px Arial"; ctx.textAlign = "center";
   ctx.fillText("$", 0, 1);
   ctx.restore();
+}
+
+// the little ziplock baggie (s = scale)
+function drawBaggie(x, y, s) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(s, s);
+  // soft glow
+  ctx.fillStyle = "rgba(255,255,255,0.12)";
+  ctx.beginPath(); ctx.arc(0, 0, 14, 0, 6.28); ctx.fill();
+  // bag body (slightly translucent plastic)
+  ctx.fillStyle = "rgba(238,243,252,0.88)";
+  ctx.beginPath(); ctx.roundRect(-7, -8, 14, 16, 3); ctx.fill();
+  ctx.strokeStyle = "#aeb6c4"; ctx.lineWidth = 1; ctx.stroke();
+  // ziplock seal
+  ctx.fillStyle = "#cfd6e2";
+  ctx.fillRect(-7, -9.5, 14, 3.5);
+  ctx.strokeStyle = "#8e96a4";
+  ctx.beginPath(); ctx.moveTo(-7, -7.6); ctx.lineTo(7, -7.6); ctx.stroke();
+  // powder heaped inside
+  ctx.fillStyle = "#fff";
+  ctx.beginPath();
+  ctx.arc(-2.5, 3.5, 3.6, 0, 6.28);
+  ctx.arc(2, 4.5, 3.2, 0, 6.28);
+  ctx.arc(0, 1.5, 3, 0, 6.28);
+  ctx.fill();
+  // plastic sheen
+  ctx.strokeStyle = "rgba(255,255,255,0.85)"; ctx.lineWidth = 1.2;
+  ctx.beginPath(); ctx.moveTo(-4.5, -5.5); ctx.lineTo(3.5, 5.5); ctx.stroke();
+  // glints
+  ctx.globalAlpha = 0.6 + 0.4 * Math.sin(t * 0.25);
+  ctx.fillStyle = "#fff";
+  ctx.fillRect(-4, 0, 1.4, 1.4);
+  ctx.fillRect(3, 3, 1.4, 1.4);
+  ctx.globalAlpha = 1;
+  ctx.restore();
+}
+
+// the Peter Millar vest silhouette (shared by the icon and the worn version)
+function vestPath(c) {
+  c.beginPath();
+  c.moveTo(-9.5, -8);
+  c.lineTo(-4, -10.5);
+  c.lineTo(0, -5.5);
+  c.lineTo(4, -10.5);
+  c.lineTo(9.5, -8);
+  c.lineTo(10.5, 14);
+  c.lineTo(-10.5, 14);
+  c.closePath();
 }
 
 function drawCoin(c) {
@@ -1862,16 +1923,15 @@ function drawPlayer() {
 
   // phase 3: the little baggie hovers over you, spraying as it lifts
   if (player.eagle > 0 && phase >= 3) {
-    ctx.save();
-    ctx.translate(x, y - 44 + Math.sin(t * 0.3) * 2);
-    ctx.fillStyle = "rgba(245,245,250,0.92)";
-    ctx.beginPath(); ctx.roundRect(-8, -9, 16, 18, 4); ctx.fill();
-    ctx.strokeStyle = "#aaa"; ctx.lineWidth = 1; ctx.stroke();
-    ctx.fillStyle = "#fff";
-    ctx.fillRect(-8, -11, 16, 4);
-    ctx.fillStyle = "rgba(255,255,255,0.95)";
-    ctx.beginPath(); ctx.arc(-2, 3, 5, 0, 6.28); ctx.arc(3, 0, 4, 0, 6.28); ctx.fill();
-    ctx.restore();
+    const by2 = y - 46 + Math.sin(t * 0.3) * 2.5;
+    drawBaggie(x, by2, 1.3 + Math.sin(t * 0.15) * 0.05);
+    // powder streaming from the open seal down to the player
+    ctx.strokeStyle = "rgba(255,255,255,0.35)";
+    ctx.lineWidth = 5 + Math.sin(t * 0.4) * 1.5;
+    ctx.beginPath();
+    ctx.moveTo(x, by2 + 10);
+    ctx.quadraticCurveTo(x + Math.sin(t * 0.2) * 5, (by2 + y) / 2, x, y - 14);
+    ctx.stroke();
   }
 
   // eagle carrying the player
@@ -1940,23 +2000,37 @@ function drawPlayer() {
     ctx.strokeStyle = farm.carrying.golden ? "#c8a020" : "#ccc"; ctx.lineWidth = 1; ctx.stroke();
   }
 
-  // the Peter Millar vest, worn over the suit while the shield is active
+  // the Peter Millar vest, worn over the suit while the shield is active —
+  // quilted, with a glow that hugs the vest's own shape
   if (player.shield > 0 && phase >= 3) {
     const fade = player.shield < 120 ? (Math.sin(t * 0.4) * 0.4 + 0.6) : 1;
     ctx.save();
     ctx.translate(x, y);
     ctx.scale(player.facing, 1);
     ctx.globalAlpha = fade;
-    ctx.fillStyle = "#1f3a5f";
-    ctx.beginPath(); ctx.roundRect(-10, -8, 20, 22, 5); ctx.fill();
-    ctx.strokeStyle = "#cfd8e8"; ctx.lineWidth = 1.2;
-    ctx.beginPath(); ctx.moveTo(0, -7); ctx.lineTo(0, 13); ctx.stroke(); // zipper
-    ctx.beginPath(); ctx.moveTo(-5, -8); ctx.lineTo(0, -3); ctx.lineTo(5, -8); ctx.stroke(); // collar
-    ctx.fillStyle = "#cfd8e8"; // zipper pull
-    ctx.fillRect(-1, -4, 2, 3);
-    // shimmer so you can tell it's protecting you
-    ctx.strokeStyle = "rgba(91,225,255," + (0.5 * fade) + ")"; ctx.lineWidth = 1.5;
-    ctx.beginPath(); ctx.roundRect(-11.5, -9.5, 23, 25, 6); ctx.stroke();
+    // body with contoured glow
+    ctx.shadowColor = "rgba(91,225,255," + (0.85 * fade) + ")";
+    ctx.shadowBlur = 11 + Math.sin(t * 0.15) * 4;
+    ctx.fillStyle = "#21406b";
+    vestPath(ctx); ctx.fill();
+    ctx.shadowBlur = 0;
+    // quilted puffer stitching
+    ctx.save();
+    vestPath(ctx); ctx.clip();
+    ctx.strokeStyle = "rgba(160,200,240,0.65)"; ctx.lineWidth = 1;
+    for (let q = -4; q <= 12; q += 4) {
+      ctx.beginPath(); ctx.moveTo(-11, q); ctx.quadraticCurveTo(0, q + 1.5, 11, q); ctx.stroke();
+    }
+    ctx.restore();
+    // collar + zipper + pull
+    ctx.strokeStyle = "#cfd8e8"; ctx.lineWidth = 1.4;
+    ctx.beginPath(); ctx.moveTo(-4, -10.5); ctx.lineTo(0, -5.5); ctx.lineTo(4, -10.5); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, -5.5); ctx.lineTo(0, 14); ctx.stroke();
+    ctx.fillStyle = "#cfd8e8";
+    ctx.fillRect(-1.2, -2, 2.4, 3.5);
+    // bright rim tracing the vest outline
+    ctx.strokeStyle = "rgba(155,235,255," + (0.8 * fade) + ")"; ctx.lineWidth = 1.5;
+    vestPath(ctx); ctx.stroke();
     ctx.globalAlpha = 1;
     ctx.restore();
   }
