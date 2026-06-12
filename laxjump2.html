@@ -89,9 +89,9 @@ const GRADS = (() => {
     jersey:     mk(-10, 10, "#e8433a", "#b3221b"),
     defJersey:  mk(-8, 14, "#33508f", "#16244a"),
     gold:       mk(4, 15, "#f7e08a", "#b8860b"),
-    platinum:   mk(4, 15, "#e8ecf2", "#8d97a8"),
-    junk:       mk(4, 15, "#8a8f99", "#52565e"),
-    suit:       mk(-9, 10, "#34343e", "#0f0f14"),
+    platinum:   mk(4, 15, "#f4f6fa", "#9aa3b2"),
+    junk:       mk(4, 15, "#ffffff", "#d2d2d6"),
+    suit:       mk(-9, 10, "#4e4e5c", "#1e1e26"),
     building:   mk(-16, 18, "#9aa0aa", "#5e646e"),
     stick,
   };
@@ -189,32 +189,62 @@ const MOVE_ACC = 0.6;
 const MAX_VX = 6.5;
 const MAX_AMMO = 5;
 const PLAT_W = 78, PLAT_H = 16;
-const BOSS_AT = 20000;
+const BOSS_AT = 15000;
 const BOSS_HP = 10;
+const FARM_AT = 50000;
 
-// milestone sayings fly by on blimp signs (lax slang below 20k, PE above)
+// milestone sayings (blimps below the boss, NYSE tickers in the PE stretch)
 const MILESTONES = [
   [1000,  "RIPPING IT!"],
   [2500,  "TOP SHELF!"],
   [5000,  "...WHERE MOMMA HIDES THE COOKIES"],
   [7500,  "BAR DOWN!"],
   [10000, "FULL FLOW MODE"],
-  [15000, "LAX LEGEND"],
-  [25000, "EBITDA POSITIVE"],
-  [30000, "2 AND 20"],
-  [40000, "FUND IV CLOSED"],
-  [60000, "PE LEGEND"],
+  [12500, "LAX LEGEND"],
+  [20000, "EBITDA POSITIVE"],
+  [27500, "2 AND 20, ALWAYS"],
+  [35000, "FUND IV CLOSED"],
+  [45000, "PE LEGEND"],
 ];
 const BLIMP_MSGS = ["GO LAX!", "BAR DOWN!", "RIP IT!", "FLOW CHECK"];
-const BLIMP_MSGS_PE = ["BUY LOW", "SELL HIGH", "DRY POWDER", "LBO SZN"];
+// classic buy-side ticker chatter: green prints up, red prints down
+const TICKER_MSGS = [
+  ["DRY POWDER AT RECORD HIGHS", 1],
+  ["IT'S ACCRETIVE", 1],
+  ["SYNERGIES UNLOCKED", 1],
+  ["MULTIPLE EXPANSION SZN", 1],
+  ["2 AND 20, ALWAYS", 1],
+  ["CAP TABLE LOOKING CLEAN", 1],
+  ["PURE ALPHA", 1],
+  ["LBO SZN", 1],
+  ["WE'LL CIRCLE BACK", 0],
+  ["PER MY LAST EMAIL", 0],
+  ["LET'S TAKE THIS OFFLINE", 0],
+  ["EBITDA: ADJUSTED AGAIN", 0],
+  ["THE DECK IS 180 SLIDES", 0],
+  ["SELL SIDE SAYS HOLD", 0],
+  ["HEADCOUNT RIGHTSIZED", 0],
+  ["MANDATORY FUN AT THE OFFSITE", 0],
+];
+// the boss quizzes you with every shot
+const INTERVIEW = [
+  "WALK ME THROUGH AN LBO",
+  "WALK ME THROUGH A DCF",
+  "HOW DO THE 3 STATEMENTS LINK?",
+  "WHY PRIVATE EQUITY?",
+  "PAPER LBO. GO.",
+  "WHAT MAKES A GOOD LBO TARGET?",
+  "WHERE DOES DEPRECIATION FLOW?",
+  "TELL ME ABOUT A RECENT DEAL",
+];
 
 // ---------- State ----------
 let state = "title"; // title | playing | gameover
 let player, platforms, coins, defenders, parts, shots, floats;
 let clouds, birds, blimps, balloons;
 let cameraY, score, ammo, newBest, overAt, lastPortalY, mileIdx, t = 0;
-// phase 1 = lacrosse climb, 2 = Joe Dowling boss arena, 3 = private equity climb
-let phase, boss, bossShots, pickups, srcDigit;
+// phase 1 = lacrosse climb, 2 = boss arena, 3 = private equity climb, 4 = goose farm
+let phase, boss, bossShots, pickups, srcDigit, tickers, farm, overTitle, startBest;
 let best = +(localStorage.getItem("laxjump2_best") || 0);
 let tiltX = 0, tiltSeen = false, isTouch = false;
 
@@ -236,19 +266,29 @@ function spawnPlatformAt(y) {
   const d = difficulty();
   let type = "normal";
   const r = Math.random();
-  if (score > 400 && r < 0.12 + 0.18 * d) type = "moving";
+  if (phase >= 3) {
+    // keep plenty of plain gold bars so items/portals have homes
+    if (r < 0.16) type = "moving";
+    else if (r < 0.32) type = "wood";
+    else if (r < 0.40) type = "net";
+  } else if (score > 400 && r < 0.12 + 0.18 * d) type = "moving";
   else if (score > 600 && r < 0.27 + 0.38 * d) type = "wood";
   else if (score > 800 && r < 0.33 + 0.38 * d) type = "net";
   const p = newPlatform(rand(8, W - PLAT_W - 8), y, type);
 
   if (type === "normal") {
     const ir = Math.random();
-    if (ir < 0.012) p.item = "eagle";
+    if (phase >= 3) {
+      if (ir < 0.05) p.item = "eagle";
+      else if (ir < 0.12) p.item = "shield";
+      else if (ir < 0.26) p.item = "ball";
+    } else if (ir < 0.012) p.item = "eagle";
     else if (ir < 0.05) p.item = "shield";
     else if (ir < 0.14) p.item = "ball";
   }
-  // pipeline segue portal (a few per run)
-  if (type === "normal" && y < lastPortalY - 2000 && Math.random() < 0.03) {
+  // pipeline segue / sourced portal (a few per run)
+  if (type === "normal" && y < lastPortalY - (phase >= 3 ? 1200 : 2000) &&
+      Math.random() < (phase >= 3 ? 0.06 : 0.03)) {
     p.portal = true;
     p.item = null;
     lastPortalY = y;
@@ -273,6 +313,7 @@ function reset() {
   lastPortalY = H;
   callOut = null;
   phase = 1; boss = null; bossShots = []; pickups = []; srcDigit = 0;
+  tickers = []; farm = null; overTitle = "CHECKED!"; startBest = best;
   stopEagleSolo();
   stopFinanceTune();
 
@@ -293,8 +334,11 @@ function burst(x, y, n, color, speed, grav) {
                  life: rand(18, 36), max: 36, c: color, r: rand(1.5, 3.5), g: grav });
   }
 }
-function popup(x, y, txt, size) {
-  floats.push({ x, y, txt, size: size || 13, life: 50, max: 50 });
+function popup(x, y, txt, size, life) {
+  floats.push({ x, y, txt, size: size || 13, life: life || 50, max: life || 50 });
+}
+function saveBest() {
+  if (score > best) { best = score; localStorage.setItem("laxjump2_best", best); }
 }
 // One big front-and-center saying at a time; a new one replaces the old
 let callOut = null;
@@ -304,6 +348,12 @@ function callout(txt, life) { callOut = { txt, life: life || 70, max: life || 70
 const keys = {};
 function tryStart() {
   if (state === "playing") return;
+  if (state === "retired") {
+    if (performance.now() - overAt < 500) return;
+    reset();
+    state = "title";
+    return;
+  }
   if (state === "gameover" && performance.now() - overAt < 700) return;
   initAudio();
   enableTilt();
@@ -321,9 +371,33 @@ function canvasPoint(cx, cy) {
   return { x: (cx - r.left) / r.width * W, y: (cy - r.top) / r.height * H };
 }
 
+// Taps on the farm: the retire button, eggs, and the rocking chair
+function farmTap(cx, cy) {
+  if (!farm) return false;
+  if (cx >= 6 && cx <= 78 && cy >= 42 && cy <= 72) { retire(); return true; }
+  const gy = farm.ground - cameraY;
+  for (const g of farm.geese) {
+    if (!g.egg || farm.carrying) continue;
+    if (Math.hypot(g.x - cx, (gy - 44) - cy) < 30) {
+      farm.carrying = { golden: g.egg.golden };
+      g.egg = null;
+      farm.chilling = false;
+      callout("BRING IT HOME!");
+      SND.coin();
+      return true;
+    }
+  }
+  if (Math.hypot(farm.chairX - cx, (gy - 28) - cy) < 42) {
+    farm.chilling = true;
+    return true;
+  }
+  farm.chilling = false; // tapping anywhere else gets you out of the chair
+  return false;
+}
+
 // Tap a targeted defender (or the boss) to rip a shot at him (costs one ball)
 function tryShoot(cx, cy) {
-  if (state !== "playing" || ammo <= 0) return false;
+  if (state !== "playing" || phase === 4 || ammo <= 0) return false;
   if (phase === 2) {
     if (!boss || boss.dead) return false;
     const dist = Math.hypot(boss.x - cx, (boss.y + boss.yOff - cameraY) - cy);
@@ -352,7 +426,8 @@ window.addEventListener("touchstart", e => {
   if (state !== "playing") { tryStart(); return; }
   const tc = e.touches[0];
   const pt = canvasPoint(tc.clientX, tc.clientY);
-  if (tryShoot(pt.x, pt.y)) return;
+  if (phase === 4) { if (farmTap(pt.x, pt.y)) return; }
+  else if (tryShoot(pt.x, pt.y)) return;
   touchDir = tc.clientX < window.innerWidth / 2 ? -1 : 1;
 }, { passive: false });
 window.addEventListener("touchmove", e => {
@@ -363,7 +438,8 @@ window.addEventListener("touchend", e => { if (!e.touches.length) touchDir = 0; 
 window.addEventListener("mousedown", e => {
   if (state !== "playing") { tryStart(); return; }
   const pt = canvasPoint(e.clientX, e.clientY);
-  tryShoot(pt.x, pt.y);
+  if (phase === 4) farmTap(pt.x, pt.y);
+  else tryShoot(pt.x, pt.y);
 });
 
 // Tilt: iOS 13+ requires permission requested from a user gesture.
@@ -447,6 +523,9 @@ function update() {
   if (player.x > W + 20) player.x = -20;
 
   if (phase === 2) { updateBoss(); return; }
+  if (phase === 4) { updateFarm(); return; }
+
+  if (t % 600 === 0) saveBest(); // autosave the high score mid-run
 
   // platform collisions (only while falling, never during eagle flight)
   if (player.vy > 0 && player.eagle <= 0) {
@@ -522,7 +601,9 @@ function update() {
     const dx = player.x - ix, dy = player.y - iy;
     if (dx * dx + dy * dy < 32 * 32) {
       if (p.item === "ball") {
-        if (ammo < MAX_AMMO) { ammo++; popup(ix, iy, "+1 ball"); }
+        if (ammo < MAX_AMMO) ammo++;
+        if (phase >= 3) { score += 50; popup(ix, iy, "+$$$"); }
+        else popup(ix, iy, "+1 ball");
         SND.coin();
         burst(ix, iy, 8, "#ffe34d", 2.5, 0.05);
       } else if (p.item === "shield") {
@@ -551,7 +632,7 @@ function update() {
       if (ammo < MAX_AMMO) ammo++;
       SND.coin();
       burst(c.x, c.y, 8, "#ffd23b", 2.5, 0);
-      popup(c.x, c.y, "+50");
+      popup(c.x, c.y, phase >= 3 ? "+$$$" : "+50");
     }
   }
 
@@ -630,11 +711,28 @@ function update() {
   // the buy side awaits
   if (phase === 1 && score >= BOSS_AT) { enterBoss(); return; }
 
-  // milestones fly by on blimp signs in the background
+  // golden sparks rage as retirement (the goose farm) approaches
+  if (phase === 3 && score > FARM_AT - 1800) {
+    const heat = (score - (FARM_AT - 1800)) / 1800;
+    if (Math.random() < 0.25 + heat * 0.85) {
+      parts.push({ x: rand(0, W), y: cameraY - 8,
+                   vx: rand(-0.8, 0.8), vy: rand(2, 4.5 + heat * 3),
+                   life: rand(45, 85), max: 85,
+                   c: Math.random() < 0.7 ? "#ffd23b" : "#fff", r: rand(1.2, 3), g: 0.02 });
+    }
+  }
+  if (phase === 3 && score >= FARM_AT) { enterFarm(); return; }
+
+  // milestones fly by: blimp signs early, NYSE tickers on the buy side
   while (mileIdx < MILESTONES.length && score >= MILESTONES[mileIdx][0]) {
     const fromLeft = Math.random() < 0.5;
-    blimps.push({ x: fromLeft ? -90 : W + 90, wy: rand(80, 220) + cameraY * 0.7, p: 0.7,
-                  vx: fromLeft ? 0.6 : -0.6, msg: MILESTONES[mileIdx][1] });
+    if (phase >= 3) {
+      tickers.push({ x: fromLeft ? -260 : W + 20, wy: rand(70, 280) + cameraY * 0.75, p: 0.75,
+                     vx: fromLeft ? 1.1 : -1.1, msg: MILESTONES[mileIdx][1], up: 1 });
+    } else {
+      blimps.push({ x: fromLeft ? -90 : W + 90, wy: rand(80, 220) + cameraY * 0.7, p: 0.7,
+                    vx: fromLeft ? 0.6 : -0.6, msg: MILESTONES[mileIdx][1] });
+    }
     mileIdx++;
   }
 
@@ -657,19 +755,28 @@ function gameOver() {
   if (state !== "playing") return;
   state = "gameover";
   overAt = performance.now();
+  overTitle = phase === 2 ? "INTERVIEW FAILED" : phase >= 3 ? "OUT OF CAPITAL" : "CHECKED!";
   stopEagleSolo();
   stopFinanceTune();
   SND.over();
   if (navigator.vibrate) navigator.vibrate(120);
-  if (score > best) {
-    best = score; newBest = true;
-    localStorage.setItem("laxjump_best", best);
+  saveBest();
+  if (score > startBest) {
+    newBest = true;
     // confetti for the new record
     const colors = ["#d8332a", "#ffd23b", "#5be1ff", "#3aa657", "#fff", "#b46cff"];
     for (let i = 0; i < 5; i++) {
       burst(rand(40, W - 40), cameraY + rand(80, 300), 12, colors[i % colors.length], 4, 0.12);
     }
   }
+}
+
+function retire() {
+  saveBest();
+  newBest = score > startBest;
+  overAt = performance.now();
+  state = "retired";
+  SND.shield();
 }
 
 // ---------- The buy side boss ----------
@@ -721,13 +828,14 @@ function updateBoss() {
       boss.y = boss.targetY;
       boss.x = W / 2 + Math.sin(boss.t) * 130;
       boss.yOff = Math.sin(boss.t * 1.7) * 14;
-      // slow lacrosse balls lobbed at the player
+      // slow lacrosse balls lobbed at the player, each with a pop quiz
       if (--boss.cool <= 0) {
         boss.cool = 150;
         const bx = boss.x, by = boss.y + boss.yOff + 20;
         const dx = player.x - bx, dy = player.y - by;
         const dl = Math.hypot(dx, dy) || 1;
         bossShots.push({ x: bx, y: by, vx: dx / dl * 2.3, vy: dy / dl * 2.3, life: 700 });
+        popup(clamp(bx, 90, W - 90), by - 50, INTERVIEW[Math.floor(rand(0, INTERVIEW.length))], 13, 120);
         SND.shot();
       }
     }
@@ -809,6 +917,88 @@ function defeatBoss() {
   }
 }
 
+// ---------- The goose farm (retirement) ----------
+function enterFarm() {
+  phase = 4;
+  stopFinanceTune();
+  stopEagleSolo();
+  // the gold course erupts one last time
+  for (const p of platforms) {
+    if (p.broken) continue;
+    const sy = p.y - cameraY;
+    if (sy > -40 && sy < H + 20) {
+      burst(p.x + p.w / 2, p.y + 6, 10, "#ffd23b", 4, 0.15);
+      burst(p.x + p.w / 2, p.y + 6, 6, "#fff", 3, 0.15);
+    }
+  }
+  burst(W / 2, cameraY + H / 2, 40, "#ffd23b", 6, 0.08);
+  platforms = []; coins = []; defenders = []; shots = []; tickers = []; pickups = [];
+  player.eagle = 0; player.shield = 0;
+  player.vy = 0;
+  const ground = cameraY + H - 70;
+  farm = {
+    ground,
+    houseX: 62,
+    chairX: W - 46,
+    carrying: null,
+    chilling: false,
+    geese: [],
+  };
+  for (let i = 0; i < 5; i++) {
+    const golden = i === 4; // the golden goose
+    farm.geese.push({
+      x: rand(130, W - 110), dir: Math.random() < 0.5 ? -1 : 1,
+      t: rand(0, 6.28), golden, egg: null,
+      layCool: golden ? rand(1400, 2600) : rand(400, 1100),
+    });
+  }
+  callout("WELCOME TO THE GOOSE FARM", 220);
+  sfx(520, 0.5, "triangle", 0.05, 200);
+}
+
+function updateFarm() {
+  // flat ground: walking only, no jumping, no dying
+  player.vy = 0;
+  player.y = farm.ground - 30;
+  if (farm.chilling) {
+    player.vx = 0;
+    player.x += (farm.chairX - player.x) * 0.2;
+    // cigar smoke drifting up
+    if (t % 26 === 0) {
+      parts.push({ x: player.x + player.facing * 14, y: player.y - 24,
+                   vx: rand(-0.2, 0.3), vy: -rand(0.4, 0.9),
+                   life: rand(40, 70), max: 70, c: "rgba(220,220,225,0.7)", r: rand(2, 4), g: -0.005 });
+    }
+  } else {
+    player.x = clamp(player.x, 24, W - 24);
+  }
+
+  for (const g of farm.geese) {
+    g.t += 0.05;
+    g.x += g.dir * 0.35;
+    if (g.x < 125 || g.x > W - 100 || Math.random() < 0.004) g.dir *= -1;
+    if (!g.egg && --g.layCool <= 0) {
+      g.egg = { golden: g.golden };
+      g.layCool = g.golden ? rand(2200, 4000) : rand(700, 1600);
+      sfx(700, 0.1, "triangle", 0.035, 150);
+    }
+  }
+  // the occasional honk
+  if (Math.random() < 0.002) sfx(520, 0.18, "square", 0.03, -180);
+
+  // deliver a carried egg at the farmhouse door
+  if (farm.carrying && Math.abs(player.x - farm.houseX) < 28) {
+    const golden = farm.carrying.golden;
+    farm.carrying = null;
+    score += golden ? 10000 : 1000;
+    popup(farm.houseX + 30, farm.ground - 120, golden ? "+10,000" : "+1,000", 18, 80);
+    burst(farm.houseX, farm.ground - 60, golden ? 20 : 10, "#ffd23b", 3.5, 0.1);
+    SND.coin();
+    if (golden) { SND.shield(); callout("GOLDEN EGG!"); }
+    saveBest();
+  }
+}
+
 // ---------- Scenery ----------
 function updateDecor() {
   for (const c of clouds) c.x += c.vx;
@@ -826,12 +1016,21 @@ function updateDecor() {
     birds.push({ x: fromLeft ? -20 : W + 20, wy: rand(60, H * 0.6) + cameraY * 0.9, p: 0.9,
                  vx: fromLeft ? rand(0.8, 1.5) : -rand(0.8, 1.5), flap: rand(0, 6) });
   }
-  if (((alt > 2000 && alt < 11000) || phase >= 3) && blimps.length < 1 && Math.random() < 0.002) {
+  for (const tk of tickers) tk.x += tk.vx;
+  if (phase < 3 && alt > 2000 && alt < 11000 && blimps.length < 1 && Math.random() < 0.002) {
     const fromLeft = Math.random() < 0.5;
-    const msgs = phase >= 3 ? BLIMP_MSGS_PE : BLIMP_MSGS;
     blimps.push({ x: fromLeft ? -90 : W + 90, wy: rand(60, 200) + cameraY * 0.7, p: 0.7,
                   vx: fromLeft ? 0.35 : -0.35,
-                  msg: msgs[Math.floor(Math.random() * msgs.length)] });
+                  msg: BLIMP_MSGS[Math.floor(Math.random() * BLIMP_MSGS.length)] });
+  }
+  // NYSE-style ticker prints crawling across the buy side
+  if (phase === 3 && tickers.length < 3 && Math.random() < 0.008) {
+    const fromLeft = Math.random() < 0.5;
+    const m = TICKER_MSGS[Math.floor(Math.random() * TICKER_MSGS.length)];
+    tickers.push({ x: fromLeft ? -m[0].length * 9 - 30 : W + 20,
+                   wy: rand(60, 360) + cameraY * 0.75, p: 0.75,
+                   vx: fromLeft ? rand(0.8, 1.4) : -rand(0.8, 1.4),
+                   msg: m[0], up: m[1] });
   }
   // lacrosse-ball hot air balloon
   if (alt > 1500 && alt < 9500 && balloons.length < 1 && Math.random() < 0.0015) {
@@ -843,6 +1042,8 @@ function updateDecor() {
   birds = birds.filter(b => b.x > -40 && b.x < W + 40 && b.wy - cameraY * b.p < H + 40);
   blimps = blimps.filter(b => b.x > -140 && b.x < W + 140 && b.wy - cameraY * b.p < H + 80);
   balloons = balloons.filter(b => b.x > -110 && b.x < W + 110 && b.wy - cameraY * b.p < H + 110);
+  tickers = tickers.filter(tk => tk.x > -tk.msg.length * 9 - 60 && tk.x < W + 60 &&
+                                 tk.wy - cameraY * tk.p < H + 60);
 }
 
 const SKY = [
@@ -867,8 +1068,10 @@ for (let i = 0; i < 90; i++) stars.push({ x: hash(i) * W, y: hash(i + 200) * H, 
 
 function drawBackground() {
   const alt = Math.max(0, -cameraY);
+  const dark = phase === 2 || phase === 3;
   let [top, bot] = skyAt(alt);
-  if (phase >= 2) { top = [9, 9, 13]; bot = [30, 28, 38]; }
+  if (dark) { top = [9, 9, 13]; bot = [30, 28, 38]; }
+  if (phase === 4) { top = [125, 195, 235]; bot = [205, 235, 215]; }
   const g = ctx.createLinearGradient(0, 0, 0, H);
   g.addColorStop(0, `rgb(${top[0]},${top[1]},${top[2]})`);
   g.addColorStop(1, `rgb(${bot[0]},${bot[1]},${bot[2]})`);
@@ -876,7 +1079,7 @@ function drawBackground() {
   ctx.fillRect(0, 0, W, H);
 
   // shiny diagonal sheen sweeping across the black PE backdrop
-  if (phase >= 2) {
+  if (dark) {
     const sx = (t * 0.7) % (W + 400) - 200;
     const sh = ctx.createLinearGradient(sx, 0, sx + 150, H);
     sh.addColorStop(0, "rgba(212,175,55,0)");
@@ -887,16 +1090,16 @@ function drawBackground() {
   }
 
   // stars: night sky in phase 1, gold glitter in the PE phases
-  const starA = phase >= 2 ? 0.9 : clamp((alt - 11000) / 3500, 0, 1);
+  const starA = dark ? 0.9 : phase === 4 ? 0 : clamp((alt - 11000) / 3500, 0, 1);
   if (starA > 0) {
     for (const s of stars) {
       const sy = ((s.y - cameraY * 0.12) % H + H) % H;
       ctx.globalAlpha = starA * (0.5 + 0.5 * Math.sin(t * 0.05 + s.tw));
-      ctx.fillStyle = phase >= 2 ? "#d4af37" : "#fff";
+      ctx.fillStyle = dark ? "#d4af37" : "#fff";
       ctx.fillRect(s.x, sy, 2, 2);
     }
     ctx.globalAlpha = 1;
-    if (phase < 2) {
+    if (!dark) {
       ctx.globalAlpha = starA;
       ctx.fillStyle = "#f4f1de";
       ctx.beginPath(); ctx.arc(W - 80, 100, 26, 0, 6.28); ctx.fill();
@@ -906,27 +1109,27 @@ function drawBackground() {
     }
   }
 
-  // sun (sets as you climb)
-  const sunA = phase >= 2 ? 0 : clamp(1 - (alt - 9500) / 3000, 0, 1);
+  // sun (sets as you climb; always shining over the farm)
+  const sunA = dark ? 0 : phase === 4 ? 1 : clamp(1 - (alt - 9500) / 3000, 0, 1);
   if (sunA > 0) {
-    const sy = 95 + alt * 0.028;
+    const sy = phase === 4 ? 88 : 95 + alt * 0.028;
     if (sy < H + 60) {
       ctx.globalAlpha = sunA * 0.35;
       ctx.fillStyle = "#fff3b0";
       ctx.beginPath(); ctx.arc(W - 75, sy, 52, 0, 6.28); ctx.fill();
       ctx.globalAlpha = sunA;
-      ctx.fillStyle = alt > 7000 ? "#ff9d3b" : "#ffe9a3";
+      ctx.fillStyle = phase === 4 ? "#ffe9a3" : alt > 7000 ? "#ff9d3b" : "#ffe9a3";
       ctx.beginPath(); ctx.arc(W - 75, sy, 32, 0, 6.28); ctx.fill();
       ctx.globalAlpha = 1;
     }
   }
 
   // clouds (dark smoky wisps in the PE phases)
-  const cloudA = phase >= 2 ? 0.45 : (alt > 13000 ? 0.3 : 0.8);
+  const cloudA = dark ? 0.45 : (phase !== 4 && alt > 13000 ? 0.3 : 0.8);
   for (const c of clouds) {
     const cy = c.wy - cameraY * c.p;
     ctx.globalAlpha = cloudA;
-    ctx.fillStyle = phase >= 2 ? "#23232d" : "#fff";
+    ctx.fillStyle = dark ? "#23232d" : "#fff";
     ctx.beginPath();
     ctx.ellipse(c.x, cy, 34 * c.s, 13 * c.s, 0, 0, 6.28);
     ctx.ellipse(c.x - 22 * c.s, cy + 4 * c.s, 20 * c.s, 10 * c.s, 0, 0, 6.28);
@@ -979,6 +1182,23 @@ function drawBackground() {
     ctx.restore();
   }
 
+  // NYSE-style tickers crawling across the buy side
+  for (const tk of tickers) {
+    const ty = tk.wy - cameraY * tk.p;
+    const txt = (tk.up ? "▲ " : "▼ ") + tk.msg;
+    ctx.font = "bold 13px 'Courier New', monospace";
+    ctx.textAlign = "left";
+    // dark strip behind the print
+    ctx.fillStyle = "rgba(0,0,0,0.55)";
+    ctx.fillRect(tk.x - 6, ty - 12, txt.length * 8.2 + 12, 18);
+    const col = tk.up ? "#2eff6e" : "#ff4d4d";
+    ctx.globalAlpha = 0.35; // glow pass
+    ctx.fillStyle = col;
+    ctx.fillText(txt, tk.x + 1, ty + 2);
+    ctx.globalAlpha = 1;
+    ctx.fillText(txt, tk.x, ty + 1);
+  }
+
   // birds
   ctx.strokeStyle = alt > 9000 ? "#3a3a55" : "#3a4a55";
   ctx.lineWidth = 2;
@@ -993,6 +1213,140 @@ function drawBackground() {
   }
 
   drawStadium();
+  drawFarmScene();
+}
+
+// The farm: grass, fence, barn-house, rocking chair
+function drawFarmScene() {
+  if (phase !== 4 || !farm) return;
+  const gy = farm.ground - cameraY;
+
+  // rolling hill behind the fence
+  ctx.fillStyle = "#a8d8a0";
+  ctx.beginPath(); ctx.ellipse(W * 0.7, gy + 8, 320, 60, 0, 3.14, 6.28); ctx.fill();
+
+  // grass down to the bottom of the screen
+  ctx.fillStyle = "#7ec850";
+  ctx.fillRect(0, gy, W, H - gy + 80);
+  ctx.fillStyle = "#74bd49";
+  ctx.fillRect(0, gy + 26, W, 18);
+  ctx.fillStyle = "#6ab243";
+  ctx.fillRect(0, gy + 58, W, 14);
+  // a few flowers
+  for (let i = 0; i < 8; i++) {
+    ctx.fillStyle = i % 2 ? "#ffd23b" : "#fff";
+    ctx.beginPath(); ctx.arc(30 + i * 47 + hash(i) * 20, gy + 38 + hash(i + 9) * 28, 2.5, 0, 6.28); ctx.fill();
+  }
+
+  // fence along the back
+  ctx.strokeStyle = "#8a5a2b"; ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(0, gy - 18); ctx.lineTo(W, gy - 18);
+  ctx.moveTo(0, gy - 8); ctx.lineTo(W, gy - 8);
+  ctx.stroke();
+  ctx.fillStyle = "#774e22";
+  for (let x = 12; x < W; x += 46) ctx.fillRect(x, gy - 26, 5, 26);
+
+  // the farmhouse (bring eggs to the door)
+  ctx.fillStyle = "#b3402e";
+  ctx.fillRect(16, gy - 80, 92, 80);
+  ctx.strokeStyle = "#7d2417"; ctx.lineWidth = 2; ctx.strokeRect(16, gy - 80, 92, 80);
+  ctx.fillStyle = "#7d2417";
+  ctx.beginPath(); ctx.moveTo(8, gy - 78); ctx.lineTo(62, gy - 112); ctx.lineTo(116, gy - 78); ctx.closePath(); ctx.fill();
+  // door
+  ctx.fillStyle = "#f5efdf";
+  ctx.beginPath(); ctx.roundRect(farm.houseX - 17, gy - 50, 34, 50, [8, 8, 0, 0]); ctx.fill();
+  ctx.strokeStyle = "#8a5a2b"; ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(farm.houseX - 14, gy - 44); ctx.lineTo(farm.houseX + 14, gy - 8);
+  ctx.moveTo(farm.houseX + 14, gy - 44); ctx.lineTo(farm.houseX - 14, gy - 8);
+  ctx.stroke();
+  // HOME sign
+  ctx.fillStyle = "#fff";
+  ctx.font = "bold 11px Arial"; ctx.textAlign = "center";
+  ctx.fillText("HOME", farm.houseX, gy - 58);
+
+  // the rocking chair
+  ctx.save();
+  ctx.translate(farm.chairX, gy);
+  if (farm.chilling) ctx.rotate(Math.sin(t * 0.08) * 0.07);
+  ctx.strokeStyle = "#6e4319"; ctx.lineWidth = 3.5;
+  ctx.beginPath(); ctx.arc(0, -4, 22, 0.35, 2.79); ctx.stroke(); // rocker
+  ctx.beginPath();
+  ctx.moveTo(-12, -6); ctx.lineTo(-12, -26);  // front leg + seat
+  ctx.moveTo(12, -6); ctx.lineTo(12, -30);
+  ctx.moveTo(-14, -26); ctx.lineTo(14, -26);  // seat
+  ctx.moveTo(12, -30); ctx.lineTo(18, -58);   // back
+  ctx.moveTo(-14, -26); ctx.lineTo(-18, -34); // armrest
+  ctx.stroke();
+  ctx.strokeStyle = "#8a5a2b"; ctx.lineWidth = 2;
+  for (let i = 0; i < 3; i++) {
+    ctx.beginPath(); ctx.moveTo(13 + i * 1.7, -32 - i * 8); ctx.lineTo(17 + i * 0.4, -36 - i * 7); ctx.stroke();
+  }
+  ctx.restore();
+  // CHILL label
+  if (!farm.chilling) {
+    const bobC = Math.sin(t * 0.12) * 3;
+    ctx.font = "bold 14px Arial"; ctx.textAlign = "center";
+    ctx.lineWidth = 3; ctx.strokeStyle = "#14532d";
+    ctx.strokeText("CHILL", farm.chairX, gy - 74 + bobC);
+    ctx.fillStyle = "#fff";
+    ctx.fillText("CHILL", farm.chairX, gy - 74 + bobC);
+    ctx.fillStyle = "#ffe34d";
+    ctx.beginPath();
+    ctx.moveTo(farm.chairX - 5, gy - 70 + bobC);
+    ctx.lineTo(farm.chairX + 5, gy - 70 + bobC);
+    ctx.lineTo(farm.chairX, gy - 62 + bobC);
+    ctx.closePath(); ctx.fill();
+  }
+}
+
+function drawGoose(g) {
+  const gy = farm.ground - cameraY;
+  const y = gy - 11 + Math.sin(g.t * 2) * 1.2;
+  ctx.save();
+  ctx.translate(g.x, y);
+  ctx.scale(g.dir, 1);
+  // legs waddling
+  ctx.strokeStyle = "#f0a929"; ctx.lineWidth = 2;
+  const step = Math.sin(g.t * 4) * 3;
+  ctx.beginPath();
+  ctx.moveTo(-3, 6); ctx.lineTo(-3 + step, 11);
+  ctx.moveTo(3, 6); ctx.lineTo(3 - step, 11);
+  ctx.stroke();
+  // body
+  ctx.fillStyle = g.golden ? "#f5cf5a" : "#fafafa";
+  ctx.beginPath(); ctx.ellipse(0, 0, 13, 8, 0, 0, 6.28); ctx.fill();
+  ctx.strokeStyle = g.golden ? "#c8a020" : "#cfcfcf"; ctx.lineWidth = 1; ctx.stroke();
+  // tail nub + wing line
+  ctx.fillStyle = g.golden ? "#e3ba3c" : "#e8e8e8";
+  ctx.beginPath(); ctx.moveTo(-12, -3); ctx.lineTo(-18, -7); ctx.lineTo(-11, 1); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(-2, -1, 7, 4.5, -0.2, 0, 6.28); ctx.fill();
+  // neck + head
+  ctx.strokeStyle = g.golden ? "#f5cf5a" : "#fafafa"; ctx.lineWidth = 4;
+  ctx.beginPath(); ctx.moveTo(8, -4); ctx.quadraticCurveTo(13, -10, 13, -16); ctx.stroke();
+  ctx.fillStyle = g.golden ? "#f5cf5a" : "#fafafa";
+  ctx.beginPath(); ctx.arc(13, -18, 4.5, 0, 6.28); ctx.fill();
+  ctx.fillStyle = "#f0a929";
+  ctx.beginPath(); ctx.moveTo(16, -19); ctx.lineTo(22, -17.5); ctx.lineTo(16, -16); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = "#222";
+  ctx.beginPath(); ctx.arc(14, -19, 1.1, 0, 6.28); ctx.fill();
+  ctx.restore();
+
+  // a fresh egg hovering overhead, ready to tap
+  if (g.egg) {
+    const ey = gy - 44 + Math.sin(t * 0.15) * 3;
+    ctx.globalAlpha = 0.5 + 0.25 * Math.sin(t * 0.2);
+    ctx.strokeStyle = g.egg.golden ? "#ffd23b" : "#fff";
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(g.x, ey, 14, 0, 6.28); ctx.stroke();
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = g.egg.golden ? "#ffd23b" : "#fdfdf5";
+    ctx.beginPath(); ctx.ellipse(g.x, ey, 6, 8, 0, 0, 6.28); ctx.fill();
+    ctx.strokeStyle = g.egg.golden ? "#c8a020" : "#ccc"; ctx.lineWidth = 1; ctx.stroke();
+    ctx.fillStyle = "rgba(255,255,255,0.85)";
+    ctx.beginPath(); ctx.arc(g.x - 2, ey - 3, 1.8, 0, 6.28); ctx.fill();
+  }
 }
 
 // The stadium scene at the bottom of the world (scrolls away as you climb).
@@ -1105,26 +1459,32 @@ function drawPlatform(p) {
       ctx.moveTo(32, 5); ctx.lineTo(34, 14);
       ctx.stroke();
     }
-    // trampoline: a poor soul on hands and knees holding money up for you
+    // trampoline: a poor soul kneeling, head bowed, both hands raising money
     if (p.type === "net") {
       const cxm = p.w / 2;
-      ctx.strokeStyle = "#c98c5a"; ctx.lineWidth = 4; // arms & legs
-      ctx.beginPath();
-      ctx.moveTo(cxm - 8, -2); ctx.lineTo(cxm - 9, 4);
-      ctx.moveTo(cxm + 9, -2); ctx.lineTo(cxm + 10, 4);
-      ctx.stroke();
-      ctx.strokeStyle = "#6e6e76"; ctx.lineWidth = 7; // hunched back (worn gray shirt)
-      ctx.beginPath(); ctx.moveTo(cxm - 10, -5); ctx.quadraticCurveTo(cxm, -12, cxm + 11, -5); ctx.stroke();
-      ctx.fillStyle = "#c98c5a"; // head, looking down
-      ctx.beginPath(); ctx.arc(cxm - 14, -4, 4.5, 0, 6.28); ctx.fill();
-      // a hand holding bills up
+      // folded legs tucked on the ground
+      ctx.fillStyle = "#4a4a52";
+      ctx.beginPath(); ctx.roundRect(cxm + 1, -4, 13, 6, 3); ctx.fill();
+      ctx.fillStyle = "#2e2e34"; // worn shoe heel
+      ctx.beginPath(); ctx.roundRect(cxm + 11, -4, 4, 5, 1.5); ctx.fill();
+      // torso arched forward and down (worn gray shirt)
+      ctx.strokeStyle = "#6e6e76"; ctx.lineWidth = 8;
+      ctx.beginPath(); ctx.moveTo(cxm + 7, -4); ctx.quadraticCurveTo(cxm - 1, -13, cxm - 8, -6); ctx.stroke();
+      // head bowed toward the ground
+      ctx.fillStyle = "#c98c5a";
+      ctx.beginPath(); ctx.arc(cxm - 12, -3, 4.5, 0, 6.28); ctx.fill();
+      ctx.fillStyle = "#3a2c20"; // hair
+      ctx.beginPath(); ctx.arc(cxm - 13, -4.5, 3.6, 2.4, 6.0); ctx.fill();
+      // both arms raised straight up, hands gripping the stack
       ctx.strokeStyle = "#c98c5a"; ctx.lineWidth = 3;
-      ctx.beginPath(); ctx.moveTo(cxm + 6, -8); ctx.lineTo(cxm + 9, -16); ctx.stroke();
-      ctx.fillStyle = "#3aa657";
-      ctx.fillRect(cxm + 4, -22, 12, 7);
-      ctx.strokeStyle = "#1e6e35"; ctx.lineWidth = 1; ctx.strokeRect(cxm + 4, -22, 12, 7);
-      ctx.fillStyle = "#bfe8c9"; ctx.font = "bold 6px Arial"; ctx.textAlign = "center";
-      ctx.fillText("$", cxm + 10, -16.5);
+      ctx.beginPath();
+      ctx.moveTo(cxm - 4, -10); ctx.lineTo(cxm - 4, -19);
+      ctx.moveTo(cxm + 2, -10); ctx.lineTo(cxm + 3, -19);
+      ctx.stroke();
+      ctx.fillStyle = "#c98c5a";
+      ctx.beginPath(); ctx.arc(cxm - 4, -19, 2, 0, 6.28); ctx.fill();
+      ctx.beginPath(); ctx.arc(cxm + 3, -19, 2, 0, 6.28); ctx.fill();
+      drawCashStack(cxm, -22);
     }
   } else {
     // ----- lacrosse stick platforms -----
@@ -1317,10 +1677,61 @@ function drawPlayerSprite(x, y, f) {
   ctx.translate(x, y);
   ctx.scale(f, 1);
 
+  if (phase === 4) {
+    // ----- retired: denim overalls, plaid sleeves, straw hat -----
+    // boots
+    ctx.strokeStyle = "#3b5a8f"; ctx.lineWidth = 5; // denim legs
+    ctx.beginPath(); ctx.moveTo(-4, 12); ctx.lineTo(-6, 24); ctx.moveTo(4, 12); ctx.lineTo(7, 23); ctx.stroke();
+    ctx.fillStyle = "#5e3c1a";
+    ctx.beginPath(); ctx.roundRect(-12, 25, 10, 5, 2); ctx.fill();
+    ctx.beginPath(); ctx.roundRect(4, 24, 10, 5, 2); ctx.fill();
+    // plaid shirt torso + arms
+    ctx.fillStyle = "#b3402e";
+    ctx.beginPath(); ctx.roundRect(-10, -9, 20, 14, 4); ctx.fill();
+    ctx.strokeStyle = "rgba(120,20,10,0.6)"; ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(-10, -4); ctx.lineTo(10, -4);
+    ctx.moveTo(-4, -9); ctx.lineTo(-4, 5);
+    ctx.moveTo(4, -9); ctx.lineTo(4, 5);
+    ctx.stroke();
+    ctx.strokeStyle = "#b3402e"; ctx.lineWidth = 4; // sleeves
+    ctx.beginPath(); ctx.moveTo(8, -4); ctx.lineTo(15, 3); ctx.moveTo(-8, -4); ctx.lineTo(-14, 3); ctx.stroke();
+    ctx.fillStyle = "#e8b88a"; // hands
+    ctx.beginPath(); ctx.arc(16, 5, 3, 0, 6.28); ctx.fill();
+    ctx.beginPath(); ctx.arc(-15, 5, 3, 0, 6.28); ctx.fill();
+    // denim overalls bib + straps
+    ctx.fillStyle = "#3b5a8f";
+    ctx.beginPath(); ctx.roundRect(-9, -1, 18, 16, 3); ctx.fill();
+    ctx.strokeStyle = "#3b5a8f"; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(-6, -1); ctx.lineTo(-7, -9); ctx.moveTo(6, -1); ctx.lineTo(7, -9); ctx.stroke();
+    ctx.fillStyle = "#2c4570"; // pocket
+    ctx.fillRect(-4, 3, 8, 6);
+    // head + smile
+    ctx.fillStyle = "#e8b88a";
+    ctx.beginPath(); ctx.arc(0, -17, 9, 0, 6.28); ctx.fill();
+    ctx.strokeStyle = "#9c6b3f"; ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.arc(4, -14, 2.5, 0.3, 2.4); ctx.stroke();
+    ctx.fillStyle = "#222";
+    ctx.beginPath(); ctx.arc(4, -19, 1.2, 0, 6.28); ctx.fill();
+    // straw hat
+    ctx.fillStyle = "#e8c96a";
+    ctx.beginPath(); ctx.ellipse(0, -23, 14, 4, 0, 0, 6.28); ctx.fill();
+    ctx.beginPath(); ctx.arc(0, -25, 8, 3.14, 6.28); ctx.fill();
+    ctx.strokeStyle = "#b3402e"; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(-8, -25); ctx.lineTo(8, -25); ctx.stroke();
+    ctx.restore();
+    return;
+  }
+
   if (phase >= 3) {
     // ----- the buy side fit: black suit, shades -----
+    // soft spotlight halo so the dark suit pops off the black backdrop
+    ctx.fillStyle = "rgba(255,255,255,0.11)";
+    ctx.beginPath(); ctx.arc(0, -2, 36, 0, 6.28); ctx.fill();
+    ctx.fillStyle = "rgba(212,175,55,0.10)";
+    ctx.beginPath(); ctx.arc(0, -2, 25, 0, 6.28); ctx.fill();
     // legs: suit trousers + polished shoes
-    ctx.strokeStyle = "#15151b"; ctx.lineWidth = 5;
+    ctx.strokeStyle = "#23232c"; ctx.lineWidth = 5;
     ctx.beginPath(); ctx.moveTo(-4, 14); ctx.lineTo(-8, 26); ctx.moveTo(4, 14); ctx.lineTo(9, 24); ctx.stroke();
     ctx.fillStyle = "#000";
     ctx.beginPath(); ctx.roundRect(-15, 26, 10, 5, 2); ctx.fill();
@@ -1329,9 +1740,10 @@ function drawPlayerSprite(x, y, f) {
     ctx.fillRect(-13, 27, 4, 1.5);
     ctx.fillRect(8, 25, 4, 1.5);
 
-    // suit jacket
+    // suit jacket (light edge keeps the silhouette readable)
     ctx.fillStyle = GRADS.suit;
     ctx.beginPath(); ctx.roundRect(-11, -9, 22, 25, 5); ctx.fill();
+    ctx.strokeStyle = "#9a9aa8"; ctx.lineWidth = 1.2; ctx.stroke();
     // white shirt + gold tie
     ctx.fillStyle = "#f2f2f2";
     ctx.beginPath(); ctx.moveTo(-3, -8); ctx.lineTo(3, -8); ctx.lineTo(2, 8); ctx.lineTo(-2, 8); ctx.closePath(); ctx.fill();
@@ -1498,7 +1910,34 @@ function drawPlayer() {
     ctx.restore();
   }
 
-  drawPlayerSprite(x, y, player.facing);
+  if (phase === 4 && farm && farm.chilling) {
+    // rocking in the chair, cigar lit
+    const gy = farm.ground - cameraY;
+    ctx.save();
+    ctx.translate(player.x, gy);
+    ctx.rotate(Math.sin(t * 0.08) * 0.07);
+    ctx.translate(-player.x, -gy);
+    drawPlayerSprite(x, y - 4, player.facing);
+    ctx.save();
+    ctx.translate(x, y - 4);
+    ctx.scale(player.facing, 1);
+    ctx.strokeStyle = "#5e3c1a"; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(5, -14); ctx.lineTo(14, -12); ctx.stroke();
+    ctx.fillStyle = "#ff6b35";
+    ctx.beginPath(); ctx.arc(15, -11.6, 1.7, 0, 6.28); ctx.fill();
+    ctx.restore();
+    ctx.restore();
+  } else {
+    drawPlayerSprite(x, y, player.facing);
+  }
+
+  // carrying an egg home
+  if (phase === 4 && farm && farm.carrying) {
+    const ex = x + player.facing * 17, ey = y + 3;
+    ctx.fillStyle = farm.carrying.golden ? "#ffd23b" : "#fdfdf5";
+    ctx.beginPath(); ctx.ellipse(ex, ey, 5.5, 7, 0, 0, 6.28); ctx.fill();
+    ctx.strokeStyle = farm.carrying.golden ? "#c8a020" : "#ccc"; ctx.lineWidth = 1; ctx.stroke();
+  }
 
   // the Peter Millar vest, worn over the suit while the shield is active
   if (player.shield > 0 && phase >= 3) {
@@ -1522,7 +1961,7 @@ function drawPlayer() {
   }
 
   // loaded ammo: cash in hand (PE) or ball in the stick pocket (lax)
-  if (ammo > 0) {
+  if (ammo > 0 && phase !== 4) {
     if (phase >= 3) {
       ctx.save();
       ctx.translate(x + player.facing * 18, y + 4);
@@ -1558,38 +1997,27 @@ function drawDefender(d) {
   ctx.translate(x, y);
 
   if (phase >= 3) {
-    // ----- a public firm, embodied: grumpy office tower with legs -----
-    ctx.rotate(Math.sin(d.t * 1.5) * 0.05);
-    // little legs
-    ctx.strokeStyle = "#3c3f46"; ctx.lineWidth = 3;
-    ctx.beginPath(); ctx.moveTo(-6, 18); ctx.lineTo(-7, 24); ctx.moveTo(6, 18); ctx.lineTo(7, 24); ctx.stroke();
+    // ----- a public firm: a plain office tower -----
     // tower
     ctx.fillStyle = GRADS.building;
-    ctx.beginPath(); ctx.roundRect(-13, -18, 26, 36, 2); ctx.fill();
+    ctx.beginPath(); ctx.roundRect(-13, -20, 26, 40, 2); ctx.fill();
     ctx.strokeStyle = "#3c3f46"; ctx.lineWidth = 1.5; ctx.stroke();
-    // antenna
-    ctx.beginPath(); ctx.moveTo(0, -18); ctx.lineTo(0, -25); ctx.stroke();
+    // rooftop ledge + antenna
+    ctx.fillStyle = "#3c3f46";
+    ctx.fillRect(-14, -21, 28, 3);
+    ctx.beginPath(); ctx.moveTo(0, -21); ctx.lineTo(0, -28); ctx.stroke();
     ctx.fillStyle = "#d8332a";
-    ctx.beginPath(); ctx.arc(0, -26, 1.8, 0, 6.28); ctx.fill();
+    ctx.beginPath(); ctx.arc(0, -29, 1.8, 0, 6.28); ctx.fill();
     // lit windows
-    for (let r = 0; r < 4; r++) for (let cI = 0; cI < 3; cI++) {
+    for (let r = 0; r < 5; r++) for (let cI = 0; cI < 3; cI++) {
       ctx.fillStyle = hash(r * 3 + cI + d.y) < 0.5 ? "#ffd23b" : "#2b2e35";
-      ctx.fillRect(-10 + cI * 7.5, -8 + r * 6, 5, 4);
+      ctx.fillRect(-10 + cI * 7.5, -16 + r * 6, 5, 4);
     }
-    // angry eyes + frown above the windows
-    ctx.fillStyle = "#fff";
-    ctx.fillRect(-9, -16, 7, 4.5);
-    ctx.fillRect(2, -16, 7, 4.5);
-    ctx.fillStyle = "#111";
-    ctx.fillRect(-7, -15, 3, 2.5);
-    ctx.fillRect(4, -15, 3, 2.5);
-    ctx.strokeStyle = "#111"; ctx.lineWidth = 1.5;
-    ctx.beginPath(); ctx.moveTo(-9, -18.5); ctx.lineTo(-3, -16.5); ctx.moveTo(9, -18.5); ctx.lineTo(3, -16.5); ctx.stroke();
-    // ticker sign
+    // PUBLIC sign over the entrance
     ctx.fillStyle = "#16244a";
-    ctx.fillRect(-9, 12, 18, 5);
-    ctx.fillStyle = "#5be1ff"; ctx.font = "bold 4.5px Arial"; ctx.textAlign = "center";
-    ctx.fillText("PUBCO", 0, 16);
+    ctx.fillRect(-11, 14, 22, 6);
+    ctx.fillStyle = "#5be1ff"; ctx.font = "bold 5.5px Arial"; ctx.textAlign = "center";
+    ctx.fillText("PUBLIC", 0, 18.8);
 
     // red target reticle — same as ever
     const pulse2 = 0.45 + 0.3 * Math.sin(t * 0.18);
@@ -1815,8 +2243,18 @@ function drawHUD() {
   ctx.font = "13px Arial"; ctx.fillStyle = "rgba(255,255,255,0.8)";
   ctx.fillText("BEST " + best, W - 12, 25);
 
+  // retire button on the farm
+  if (phase === 4) {
+    ctx.fillStyle = "rgba(255,255,255,0.92)";
+    ctx.beginPath(); ctx.roundRect(8, 46, 66, 24, 7); ctx.fill();
+    ctx.strokeStyle = "#b3402e"; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.fillStyle = "#b3402e";
+    ctx.font = "bold 13px Arial"; ctx.textAlign = "center";
+    ctx.fillText("RETIRE", 41, 63);
+  }
+
   // ammo loaded: balls (lax) or cash stacks (PE)
-  for (let i = 0; i < ammo; i++) {
+  for (let i = 0; i < (phase === 4 ? 0 : ammo); i++) {
     const ax = W / 2 - (MAX_AMMO - 1) * 8 + i * 16;
     if (phase >= 3) {
       ctx.save(); ctx.translate(ax, 21); ctx.scale(0.6, 0.6); drawCashStack(0, 4); ctx.restore();
@@ -1887,11 +2325,33 @@ function drawTitle() {
   ctx.fillText("best  " + best, W / 2, 552);
 }
 
+function drawRetired() {
+  ctx.fillStyle = "rgba(8,30,16,0.6)";
+  ctx.fillRect(0, 0, W, H);
+  bigText("CONGRATULATIONS,", W / 2, 195, 30, "#fff", "#14532d");
+  bigText("YOU RETIRED!", W / 2, 245, 42, "#ffd23b", "#7a4d00");
+  ctx.font = "26px Arial"; ctx.textAlign = "center";
+  ctx.fillText("🪑🌅🦢", W / 2, 300);
+  ctx.fillStyle = "#fff";
+  ctx.font = "bold 30px Arial";
+  ctx.fillText(score + "", W / 2, 360);
+  ctx.font = "15px Arial"; ctx.fillStyle = "rgba(255,255,255,0.85)";
+  ctx.fillText("career earnings", W / 2, 385);
+  if (newBest) {
+    ctx.globalAlpha = 0.7 + 0.3 * Math.sin(t * 0.2);
+    bigText("🏆 NEW RECORD!", W / 2, 430, 24, "#ffd23b");
+    ctx.globalAlpha = 1;
+  }
+  ctx.globalAlpha = 0.6 + 0.4 * Math.sin(t * 0.12);
+  bigText("TAP FOR HOME SCREEN", W / 2, 500, 22, "#fff", "#14532d");
+  ctx.globalAlpha = 1;
+}
+
 function drawGameOver() {
   ctx.fillStyle = "rgba(8,30,16,0.55)";
   ctx.fillRect(0, 0, W, H);
 
-  bigText("CHECKED!", W / 2, 190, 52, "#ffd23b", "#7a2d00");
+  bigText(overTitle, W / 2, 190, overTitle.length > 10 ? 36 : 52, "#ffd23b", "#7a2d00");
   ctx.fillStyle = "#fff";
   ctx.font = "bold 30px Arial"; ctx.textAlign = "center";
   ctx.fillText(score + "", W / 2, 260);
@@ -1921,6 +2381,7 @@ function draw() {
     for (const p of platforms) drawPlatform(p);
     for (const d of defenders) drawDefender(d);
     if (phase === 2) { drawPickups(); drawBoss(); drawBossShots(); }
+    if (phase === 4 && farm) for (const g of farm.geese) drawGoose(g);
     drawShots();
     drawParticles();
     drawPlayer();
@@ -1934,6 +2395,7 @@ function draw() {
   }
   if (state === "title") drawTitle();
   if (state === "gameover") drawGameOver();
+  if (state === "retired") drawRetired();
 }
 
 // ---------- Loop ----------
@@ -1961,6 +2423,7 @@ requestAnimationFrame(loop);
 // debug/test hook (harmless in production)
 window.__lax2 = {
   getPhase: () => phase,
+  getState: () => state,
   getBossHp: () => boss ? boss.hp : -1,
   jumpTo: alt => {
     if (state !== "playing") return;
