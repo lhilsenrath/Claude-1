@@ -181,7 +181,7 @@ const SND = {
 
 // ---------- Constants ----------
 const GRAVITY = 0.32;
-const JUMP_V = -11.5;
+const JUMP_V = -10.8;
 const NET_V = -17.5;
 const EAGLE_FRAMES = 140;
 const SHIELD_FRAMES = 600;
@@ -278,7 +278,7 @@ function reset() {
 
   platforms.push(newPlatform(W / 2 - PLAT_W / 2, H - 90, "normal"));
   let y = H - 160;
-  while (y > -H) { spawnPlatformAt(y); y -= rand(58, 92); }
+  while (y > -H) { spawnPlatformAt(y); y -= rand(56, 84); }
 
   for (let i = 0; i < 6; i++) {
     clouds.push({ wy: rand(-40, H * 0.8), x: rand(0, W), s: rand(0.6, 1.3), p: rand(0.5, 0.8), vx: rand(0.05, 0.2) });
@@ -615,6 +615,18 @@ function update() {
     score = Math.max(score, Math.floor(-cameraY));
   }
 
+  // sparks rain down from above as you close in on the buy side
+  if (phase === 1 && score > BOSS_AT - 1500) {
+    const heat = (score - (BOSS_AT - 1500)) / 1500;
+    if (Math.random() < 0.12 + heat * 0.55) {
+      const cols = ["#ffd23b", "#ff9d3b", "#e84a3a"];
+      parts.push({ x: rand(0, W), y: cameraY - 8,
+                   vx: rand(-0.6, 0.6), vy: rand(1.5, 3.5 + heat * 2.5),
+                   life: rand(45, 85), max: 85,
+                   c: cols[Math.floor(rand(0, 3))], r: rand(1, 2.5), g: 0.02 });
+    }
+  }
+
   // the buy side awaits
   if (phase === 1 && score >= BOSS_AT) { enterBoss(); return; }
 
@@ -634,7 +646,7 @@ function update() {
   for (const p of platforms) if (p.y < topY) topY = p.y;
   if (topY === Infinity) topY = cameraY + H;
   while (topY > cameraY - 60) {
-    topY -= rand(58, 92 + 50 * difficulty());
+    topY -= rand(56, 84 + 38 * difficulty());
     spawnPlatformAt(topY);
   }
 
@@ -663,24 +675,36 @@ function gameOver() {
 // ---------- The buy side boss ----------
 function enterBoss() {
   phase = 2;
+  // the course shatters around you as the arena takes over
+  for (const p of platforms) {
+    if (p.broken) continue;
+    const sy = p.y - cameraY;
+    if (sy > -40 && sy < H + 20) {
+      burst(p.x + p.w / 2, p.y + 6, 8, "#8a8f99", 3, 0.2);
+      burst(p.x + p.w / 2, p.y + 6, 4, "#ffd23b", 2.5, 0.2);
+    }
+  }
+  SND.wood();
   platforms = []; coins = []; defenders = []; shots = []; bossShots = []; pickups = [];
   // one full-width floor — there is no way to fall
   const floor = newPlatform(-20, cameraY + H - 50, "floor");
   floor.w = W + 40;
   platforms.push(floor);
-  boss = { x: W / 2, y: cameraY + 120, yOff: 0, hp: BOSS_HP, t: 0, cool: 110, flash: 0, dead: false };
+  // the boss descends from above before the fight begins
+  boss = { x: W / 2, y: cameraY - 90, targetY: cameraY + 120, intro: 120,
+           yOff: 0, hp: BOSS_HP, t: 0, cool: 110, flash: 0, dead: false };
   callout("FINAL BOSS: PRIVATE EQUITY", 140);
   sfx(80, 0.9, "sawtooth", 0.07, -30);
 }
 
 function updateBoss() {
-  // floor bounce
+  // floor bounce (a touch lower than the climb so the arena feels grounded)
   if (player.vy > 0) {
     for (const p of platforms) {
       if (player.x > p.x - 12 && player.x < p.x + p.w + 12 &&
           player.y + 30 > p.y && player.y + 30 < p.y + PLAT_H + player.vy + 2) {
         player.y = p.y - 30;
-        player.vy = JUMP_V;
+        player.vy = -9.5;
         SND.bounce();
       }
     }
@@ -688,17 +712,24 @@ function updateBoss() {
 
   if (boss && !boss.dead) {
     boss.t += 0.018;
-    boss.x = W / 2 + Math.sin(boss.t) * 130;
-    boss.yOff = Math.sin(boss.t * 1.7) * 14;
     if (boss.flash > 0) boss.flash--;
-    // slow lacrosse balls lobbed at the player
-    if (--boss.cool <= 0) {
-      boss.cool = 150;
-      const bx = boss.x, by = boss.y + boss.yOff + 20;
-      const dx = player.x - bx, dy = player.y - by;
-      const dl = Math.hypot(dx, dy) || 1;
-      bossShots.push({ x: bx, y: by, vx: dx / dl * 2.3, vy: dy / dl * 2.3, life: 700 });
-      SND.shot();
+    if (boss.intro > 0) {
+      // gliding down into the arena — holds fire until he's in position
+      boss.intro--;
+      boss.y += (boss.targetY - boss.y) * 0.05;
+    } else {
+      boss.y = boss.targetY;
+      boss.x = W / 2 + Math.sin(boss.t) * 130;
+      boss.yOff = Math.sin(boss.t * 1.7) * 14;
+      // slow lacrosse balls lobbed at the player
+      if (--boss.cool <= 0) {
+        boss.cool = 150;
+        const bx = boss.x, by = boss.y + boss.yOff + 20;
+        const dx = player.x - bx, dy = player.y - by;
+        const dl = Math.hypot(dx, dy) || 1;
+        bossShots.push({ x: bx, y: by, vx: dx / dl * 2.3, vy: dy / dl * 2.3, life: 700 });
+        SND.shot();
+      }
     }
   }
 
@@ -765,10 +796,16 @@ function defeatBoss() {
   callout("EXITING BUY SIDE!", 220);
   sfx(400, 0.8, "triangle", 0.06, 500);
   startFinanceTune();
-  // build the golden course upward from the arena floor
+  // the golden course materializes upward from the arena floor
   lastPortalY = cameraY + H;
   let y = cameraY + H - 170;
-  while (y > cameraY - 60) { spawnPlatformAt(y); y -= rand(58, 95); }
+  while (y > cameraY - 60) { spawnPlatformAt(y); y -= rand(56, 84); }
+  for (const p of platforms) {
+    if (p.type === "floor") continue;
+    p.flash = 10;
+    const sy = p.y - cameraY;
+    if (sy > -20 && sy < H) burst(p.x + p.w / 2, p.y + 4, 6, "#ffd23b", 2.5, 0.05);
+  }
 }
 
 // ---------- Scenery ----------
@@ -1721,12 +1758,15 @@ function drawBossHUD() {
 }
 
 function drawBossShots() {
+  // red so they read instantly as hostile (yours are yellow)
   for (const b of bossShots) {
     const y = b.y - cameraY;
-    ctx.fillStyle = "#ffe34d";
+    ctx.fillStyle = "#e84a3a";
     ctx.beginPath(); ctx.arc(b.x, y, 7, 0, 6.28); ctx.fill();
-    ctx.strokeStyle = "#c8a800"; ctx.lineWidth = 1.5; ctx.stroke();
-    ctx.strokeStyle = "rgba(255,227,77,0.4)"; ctx.lineWidth = 4;
+    ctx.strokeStyle = "#8f1812"; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.fillStyle = "rgba(255,255,255,0.6)";
+    ctx.beginPath(); ctx.arc(b.x - 2, y - 2, 2, 0, 6.28); ctx.fill();
+    ctx.strokeStyle = "rgba(232,74,58,0.45)"; ctx.lineWidth = 4;
     ctx.beginPath(); ctx.moveTo(b.x - b.vx * 2, y - b.vy * 2); ctx.lineTo(b.x - b.vx * 5, y - b.vy * 5); ctx.stroke();
   }
 }
