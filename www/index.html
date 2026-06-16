@@ -2944,7 +2944,7 @@ function drawPlayerSprite(x, y, f) {
   ctx.fillStyle = "#fff";
   ctx.fillRect(-11, -7, 22, 2.5);
   ctx.font = "bold 11px Arial"; ctx.textAlign = "center";
-  ctx.fillText("" + charCfg.num, 0, 7);
+  ctx.save(); ctx.scale(f, 1); ctx.fillText("" + charCfg.num, 0, 7); ctx.restore();
 
   // arms + gloves
   ctx.strokeStyle = "#e8b88a"; ctx.lineWidth = 4;
