@@ -117,8 +117,8 @@ function loadJSON(k, fallback) {
   catch (e) { return Object.assign({}, fallback); }
 }
 let settings = loadJSON(KEY.settings, { name: "YOU", sfx: true, music: true, speed: "NORMAL" });
-let charCfg = loadJSON(KEY.char, { hair: "SHORT", num: 1, helmet: "#d8332a", gloves: "#d8332a",
-                                   stick: "#f0f0f0", jersey: "#d8332a", shorts: "#1c2f5e", shoes: "#222222" });
+let charCfg = loadJSON(KEY.char, { hair: "BUZZ", num: 1, helmet: "#d8332a", gloves: "#d8332a",
+                                   stick: "#f0f0f0", jersey: "#d8332a", shorts: "#f0f0f0", shoes: "#f0f0f0" });
 function savePrefs() {
   localStorage.setItem(KEY.settings, JSON.stringify(settings));
   localStorage.setItem(KEY.char, JSON.stringify(charCfg));
@@ -3619,8 +3619,8 @@ function drawTitle() {
   bigText("LAX", W / 2, 175 + bob * 0.4, 76, "#fff", "#14532d");
   bigText("JUMP 3", W / 2, 243 + bob * 0.4, 56, "#ffd23b", "#7a4d00");
   ctx.fillStyle = "#d4af37";
-  ctx.font = "bold 12px Arial"; ctx.textAlign = "center";
-  ctx.fillText("lax → buy side → nantucket → retirement", W / 2, 272);
+  ctx.font = "bold 15px Arial"; ctx.textAlign = "center";
+  ctx.fillText("the final pipeline", W / 2, 272);
 
   // sprite is right-heavy (the stick), so nudge left to center its visual mass
   drawPlayerSprite(W / 2 - 9, 350 + bob, 1);
