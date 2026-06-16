@@ -110,6 +110,7 @@ const hash = i => { const x = Math.sin(i * 127.1) * 43758.5453; return x - Math.
 // ---------- Player preferences (settings + character) ----------
 const KEY = { best: "laxjump3_best", settings: "laxjump3_settings", char: "laxjump3_char", scores: "laxjump3_scores" };
 const PALETTE = ["#d8332a", "#1c2f5e", "#1c7a3c", "#222222", "#f0f0f0", "#ff7a1a", "#7a4fbf", "#d4af37"];
+const CONFETTI = ["#d8332a", "#ffd23b", "#5be1ff", "#3aa657", "#fff", "#b46cff"]; // new-record celebration burst colors
 const HAIRS = ["SHORT", "FLOW", "BUZZ"];
 const SPEEDS = { EASY: 0.85, NORMAL: 1, HARD: 1.2 };
 function loadJSON(k, fallback) {
@@ -754,8 +755,7 @@ function update() {
   if (callOut && --callOut.life <= 0) callOut = null;
   // celebration confetti keeps falling on a new-record screen
   if ((state === "gameover" || state === "retired") && newBest && t % 18 === 0) {
-    const colors = ["#d8332a", "#ffd23b", "#5be1ff", "#3aa657", "#fff", "#b46cff"];
-    burst(rand(30, W - 30), cameraY + rand(40, 160), 7, colors[t % colors.length], 3.5, 0.12);
+    burst(rand(30, W - 30), cameraY + rand(40, 160), 7, CONFETTI[t % CONFETTI.length], 3.5, 0.12);
   }
   if (state !== "playing") return;
 
@@ -1108,9 +1108,8 @@ function gameOver() {
   if (score > startBest) {
     newBest = true;
     // confetti for the new record
-    const colors = ["#d8332a", "#ffd23b", "#5be1ff", "#3aa657", "#fff", "#b46cff"];
     for (let i = 0; i < 5; i++) {
-      burst(rand(40, W - 40), cameraY + rand(80, 300), 12, colors[i % colors.length], 4, 0.12);
+      burst(rand(40, W - 40), cameraY + rand(80, 300), 12, CONFETTI[i % CONFETTI.length], 4, 0.12);
     }
   }
 }
@@ -2556,17 +2555,22 @@ function vestPath(c) {
 }
 
 // ---------- Nantucket entity art (seashells, beers, dog, chariot, whales) ----------
+// the scallop fan's rim points are fixed geometry — compute them once, not per shell
+const SHELL_RIM = (() => {
+  const N = 7, hw = 12, r = [];
+  for (let i = 0; i <= N; i++) {
+    const fx = -hw + 2 * hw * (i / N);
+    const fy = -2 - Math.sqrt(Math.max(0, 1 - (fx / hw) * (fx / hw))) * 5.5;
+    r.push({ x: fx, y: fy });
+  }
+  return r;
+})();
 function drawSeashell(x, y, s) {
   s = s || 1;
   ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
   // wide, flat scallop fan: narrow hinge at the bottom, fluted rim up top
   const N = 7, hw = 12, baseY = 6;
-  const rim = [];
-  for (let i = 0; i <= N; i++) {
-    const fx = -hw + 2 * hw * (i / N);
-    const fy = -2 - Math.sqrt(Math.max(0, 1 - (fx / hw) * (fx / hw))) * 5.5; // gentle arch
-    rim.push({ x: fx, y: fy });
-  }
+  const rim = SHELL_RIM; // precomputed once — identical points for every shell
   const outline = () => {
     ctx.beginPath();
     ctx.moveTo(-3, baseY);
