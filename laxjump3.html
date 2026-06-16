@@ -954,7 +954,7 @@ function update() {
     }
     // whales (phase 6) are wider but shorter — an elliptical hitbox makes them a
     // touch harder to slip past without being unfair
-    const wHitX = phase === 6 ? 36 : 32, wHitY = phase === 6 ? 22 : 32;
+    const wHitX = phase === 6 ? 41 : 32, wHitY = phase === 6 ? 26 : 32;
     if ((dx * dx) / (wHitX * wHitX) + (dy * dy) / (wHitY * wHitY) < 1) {
       if (player.vy > 0 && (player.y < d.y + 2 || player.y - player.vy < d.y - 4)) {
         // stomp! bounce off the defender's head
@@ -2353,7 +2353,7 @@ function drawPlatform(p) {
     } else if (p.item === "eagle" && phase === 6) {
       drawChariot(ix, iy - 2, 0.5, 1); // a little chariot waiting to whisk you up
     } else if (p.item === "eagle" && phase >= 3) {
-      drawPrivateJet(ix, iy, 0.6, false);
+      drawJetSide(ix, iy, 0.62);
     } else if (p.item === "ball") {
       drawLaxBall(ix, iy);
     } else if (p.item === "shield") {
@@ -2401,52 +2401,88 @@ function drawCashStack(x, y) {
   ctx.restore();
 }
 
-// a sleek private jet, nose up as if climbing (replaces the powder baggie).
-// streams = draw two trailing jet contrails.
-function drawPrivateJet(x, y, s, streams) {
+// the parked jet, side-on and level, sitting on the platform (the pickup icon)
+function drawJetSide(x, y, s) {
   s = s || 1;
-  ctx.save(); ctx.translate(x, y); ctx.scale(s, s); ctx.rotate(-0.36);
-  if (streams) {
-    ctx.fillStyle = "#ffffff";
-    for (let e = 0; e < 2; e++) {              // two jet streams
-      const ey = e ? 3.6 : 0.4;
-      for (let i = 0; i < 7; i++) {
-        const px = -24 - i * 6 - (t * 1.4 % 6);
-        ctx.globalAlpha = Math.max(0, 0.5 - i * 0.075);
-        ctx.beginPath(); ctx.arc(px, ey, Math.max(0.6, 3 - i * 0.34), 0, 6.28); ctx.fill();
-      }
-    }
-    ctx.globalAlpha = 1;
-  }
-  // fuselage
+  ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
+  // landing gear so it reads as parked, not flying
+  ctx.strokeStyle = "#5a626c"; ctx.lineWidth = 1.4;
+  ctx.beginPath(); ctx.moveTo(9, 5); ctx.lineTo(9, 10); ctx.moveTo(-7, 5); ctx.lineTo(-7, 10); ctx.stroke();
+  ctx.fillStyle = "#2a2e34";
+  ctx.beginPath(); ctx.arc(9, 10.5, 1.7, 0, 6.28); ctx.fill();
+  ctx.beginPath(); ctx.arc(-7, 10.5, 1.7, 0, 6.28); ctx.fill();
+  // fuselage (level)
   ctx.fillStyle = "#f5f7f9";
-  ctx.beginPath(); ctx.ellipse(0, 0, 25, 6.4, 0, 0, 6.28); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(0, 0, 22, 6, 0, 0, 6.28); ctx.fill();
   ctx.strokeStyle = "#ccd1d7"; ctx.lineWidth = 1; ctx.stroke();
-  // pointed nose
+  // nose (right)
   ctx.fillStyle = "#eceff2";
-  ctx.beginPath(); ctx.moveTo(19, -5); ctx.quadraticCurveTo(33, 0, 19, 5); ctx.closePath(); ctx.fill();
-  // gold luxury stripe
-  ctx.strokeStyle = "#caa23c"; ctx.lineWidth = 1.8;
-  ctx.beginPath(); ctx.moveTo(-22, -1.4); ctx.lineTo(25, -1.4); ctx.stroke();
-  // cockpit window
+  ctx.beginPath(); ctx.moveTo(17, -4); ctx.quadraticCurveTo(29, 0, 17, 4); ctx.closePath(); ctx.fill();
+  // gold stripe
+  ctx.strokeStyle = "#caa23c"; ctx.lineWidth = 1.6;
+  ctx.beginPath(); ctx.moveTo(-19, -1); ctx.lineTo(22, -1); ctx.stroke();
+  // cockpit + windows
   ctx.fillStyle = "#27384a";
-  ctx.beginPath(); ctx.moveTo(14, -3.6); ctx.lineTo(21, -1); ctx.lineTo(14, 0.4); ctx.closePath(); ctx.fill();
-  // passenger windows
+  ctx.beginPath(); ctx.moveTo(12, -3); ctx.lineTo(18, -1); ctx.lineTo(12, 0.5); ctx.closePath(); ctx.fill();
   ctx.fillStyle = "#3a5168";
-  for (let i = -2; i <= 1; i++) { ctx.beginPath(); ctx.arc(i * 6 + 1, -1, 1.3, 0, 6.28); ctx.fill(); }
-  // swept wing
+  for (let i = -2; i <= 1; i++) { ctx.beginPath(); ctx.arc(i * 5 + 1, -1, 1.1, 0, 6.28); ctx.fill(); }
+  // swept wing + T-tail
   ctx.fillStyle = "#e3e7eb";
-  ctx.beginPath(); ctx.moveTo(2, 3.5); ctx.lineTo(-15, 12); ctx.lineTo(-3, 4.5); ctx.closePath(); ctx.fill();
-  ctx.strokeStyle = "#c4c9cf"; ctx.lineWidth = 0.8; ctx.stroke();
-  // T-tail
+  ctx.beginPath(); ctx.moveTo(1, 2); ctx.lineTo(-12, 7); ctx.lineTo(-2, 3); ctx.closePath(); ctx.fill();
   ctx.fillStyle = "#e8ebee";
-  ctx.beginPath(); ctx.moveTo(-21, -2); ctx.lineTo(-29, -13); ctx.lineTo(-24, -13); ctx.lineTo(-18, -2); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(-18, -2); ctx.lineTo(-25, -11); ctx.lineTo(-20, -2); ctx.closePath(); ctx.fill();
   ctx.fillStyle = "#caa23c";
-  ctx.beginPath(); ctx.moveTo(-31, -13); ctx.lineTo(-22, -13); ctx.lineTo(-24, -15.5); ctx.lineTo(-33, -15.5); ctx.closePath(); ctx.fill();
-  // rear engine nacelle
+  ctx.beginPath(); ctx.moveTo(-26, -11); ctx.lineTo(-19, -11); ctx.lineTo(-21, -13); ctx.lineTo(-28, -13); ctx.closePath(); ctx.fill();
   ctx.fillStyle = "#aab0b8";
-  ctx.beginPath(); ctx.ellipse(-19, 2.5, 5, 3.2, 0, 0, 6.28); ctx.fill();
-  ctx.fillStyle = "#586069"; ctx.beginPath(); ctx.ellipse(-23, 2.5, 1.5, 2.3, 0, 0, 6.28); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(-18, 2.5, 4, 2.8, 0, 0, 6.28); ctx.fill(); // rear engine
+  ctx.restore();
+}
+// the jet in flight — top-down (bird's-eye), climbing UP the screen, both wings
+// and both contrails visible
+function drawJetTop(x, y, s) {
+  s = s || 1;
+  ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
+  // two contrails trailing down from the two rear engines (behind the plane)
+  ctx.fillStyle = "#ffffff";
+  for (const ex of [-6.5, 6.5]) {
+    for (let i = 0; i < 8; i++) {
+      const py = 17 + i * 6 + (t * 1.4 % 6);
+      ctx.globalAlpha = Math.max(0, 0.5 - i * 0.062);
+      ctx.beginPath(); ctx.arc(ex, py, Math.max(0.6, 3.2 - i * 0.32), 0, 6.28); ctx.fill();
+    }
+  }
+  ctx.globalAlpha = 1;
+  // swept wings (left + right)
+  ctx.fillStyle = "#e3e7eb";
+  ctx.beginPath(); ctx.moveTo(-3, -3); ctx.lineTo(-27, 13); ctx.lineTo(-21, 14); ctx.lineTo(-3, 4); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(3, -3); ctx.lineTo(27, 13); ctx.lineTo(21, 14); ctx.lineTo(3, 4); ctx.closePath(); ctx.fill();
+  // tail stabilizers (small, at the bottom)
+  ctx.fillStyle = "#dfe3e8";
+  ctx.beginPath(); ctx.moveTo(-2, 13); ctx.lineTo(-12, 19); ctx.lineTo(-8, 20); ctx.lineTo(-2, 16); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(2, 13); ctx.lineTo(12, 19); ctx.lineTo(8, 20); ctx.lineTo(2, 16); ctx.closePath(); ctx.fill();
+  // fuselage (nose up)
+  ctx.fillStyle = "#f6f8fa";
+  ctx.beginPath();
+  ctx.moveTo(0, -21); ctx.quadraticCurveTo(7, -10, 6.5, 4);
+  ctx.quadraticCurveTo(6, 17, 0, 21); ctx.quadraticCurveTo(-6, 17, -6.5, 4);
+  ctx.quadraticCurveTo(-7, -10, 0, -21); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = "#ccd1d7"; ctx.lineWidth = 1; ctx.stroke();
+  // two rear engines + exhaust
+  ctx.fillStyle = "#9aa1a9";
+  ctx.beginPath(); ctx.ellipse(-6.5, 14, 2.4, 4, 0, 0, 6.28); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(6.5, 14, 2.4, 4, 0, 0, 6.28); ctx.fill();
+  ctx.fillStyle = "#586069";
+  ctx.beginPath(); ctx.ellipse(-6.5, 17.5, 1.4, 1.8, 0, 0, 6.28); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(6.5, 17.5, 1.4, 1.8, 0, 0, 6.28); ctx.fill();
+  // gold center stripe
+  ctx.strokeStyle = "#caa23c"; ctx.lineWidth = 1.6;
+  ctx.beginPath(); ctx.moveTo(0, -17); ctx.lineTo(0, 15); ctx.stroke();
+  // cockpit windshield (near the nose)
+  ctx.fillStyle = "#27384a";
+  ctx.beginPath(); ctx.moveTo(0, -18); ctx.quadraticCurveTo(4, -14, 0, -10); ctx.quadraticCurveTo(-4, -14, 0, -18); ctx.closePath(); ctx.fill();
+  // cabin windows along the sides
+  ctx.fillStyle = "#3a5168";
+  for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.arc(-3, -3 + i * 4, 0.9, 0, 6.28); ctx.fill(); ctx.beginPath(); ctx.arc(3, -3 + i * 4, 0.9, 0, 6.28); ctx.fill(); }
   ctx.restore();
 }
 
@@ -2984,14 +3020,14 @@ function drawPlayer() {
     const js = e > EAGLE_FRAMES - 12 ? (e - (EAGLE_FRAMES - 12)) / 12   // 1 -> 0 boarding
              : e < 12 ? (12 - e) / 12                                   // 0 -> 1 popping out
              : 0;                                                       // inside the jet
-    const jy = y - 6 + Math.sin(t * 0.18) * 2;
+    const jy = y - 8 + Math.sin(t * 0.16) * 1.5;
     const drawShrunk = () => {
       if (js <= 0.03) return;
       ctx.save(); ctx.translate(x, y - 8); ctx.scale(js, js); ctx.translate(-x, -(y - 8));
       drawPlayerSprite(x, y, player.facing); ctx.restore();
     };
-    if (e < 12) { drawPrivateJet(x, jy, 1.05, true); drawShrunk(); }   // emerge in front
-    else { drawShrunk(); drawPrivateJet(x, jy, 1.05, true); }          // board behind
+    if (e < 12) { drawJetTop(x, jy, 1.0); drawShrunk(); }   // emerge in front
+    else { drawShrunk(); drawJetTop(x, jy, 1.0); }          // board behind
   } else {
     drawPlayerSprite(x, y, player.facing);
   }
@@ -3105,6 +3141,7 @@ function drawDefender(d) {
 
   if (phase === 6) {
     // ----- a blue whale: wider than the other monsters, but not as tall -----
+    ctx.scale(1.22, 1.22); // a bit larger
     // tail flukes (left)
     ctx.fillStyle = "#356094";
     ctx.beginPath();
