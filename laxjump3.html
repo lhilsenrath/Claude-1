@@ -3663,7 +3663,11 @@ function drawGameOver() {
   ctx.fillStyle = "rgba(8,30,16,0.72)";
   ctx.fillRect(0, 0, W, H);
 
-  bigText(overTitle, W / 2, 104, overTitle.length > 10 ? 34 : 44, "#ffd23b", "#7a2d00");
+  // shrink the title until it fits the screen ("YOU DON'T BELONG HERE" is wide)
+  let ts = overTitle.length > 10 ? 34 : 44;
+  ctx.font = "900 " + ts + "px Arial";
+  while (ts > 16 && ctx.measureText(overTitle).width > W - 36) { ts--; ctx.font = "900 " + ts + "px Arial"; }
+  bigText(overTitle, W / 2, 104, ts, "#ffd23b", "#7a2d00");
   ctx.fillStyle = "#fff";
   ctx.font = "bold 24px Arial"; ctx.textAlign = "center";
   ctx.fillText("this round: " + score, W / 2, 146);
