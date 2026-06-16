@@ -1,0 +1,10 @@
+# Node dependencies — restore on the Mac with `npm install` (needed for `npx cap sync`)
+node_modules/
+
+# Xcode build artifacts
+ios/App/build/
+ios/DerivedData/
+DerivedData/
+*.xcuserstate
+**/.DS_Store
+*.log
