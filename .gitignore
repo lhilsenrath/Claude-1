@@ -1,4 +1,4 @@
-# Node (only needed if you want to re-run Capacitor CLI tooling; not needed to build in Xcode)
+# Node dependencies — restore on the Mac with `npm install` (needed for `npx cap sync`)
 node_modules/
 
 # Xcode build artifacts
@@ -6,7 +6,5 @@ ios/App/build/
 ios/DerivedData/
 DerivedData/
 *.xcuserstate
-
-# misc
 **/.DS_Store
 *.log
