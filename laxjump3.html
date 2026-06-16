@@ -129,12 +129,16 @@ function shade(hex, f) {
   const r = cl(Math.round(((n >> 16) & 255) * f)), g = cl(Math.round(((n >> 8) & 255) * f)), b = cl(Math.round((n & 255) * f));
   return `rgb(${r},${g},${b})`;
 }
-// the jersey gradient is rebuilt from the player's chosen colour each draw
+// the jersey gradient — cached, rebuilt only when the chosen colour changes
+let _jerseyGrad = null, _jerseyCol = null;
 function jerseyGrad() {
-  const g = ctx.createLinearGradient(0, -10, 0, 10);
-  g.addColorStop(0, shade(charCfg.jersey, 1.18));
-  g.addColorStop(1, shade(charCfg.jersey, 0.74));
-  return g;
+  if (_jerseyCol !== charCfg.jersey) {
+    _jerseyCol = charCfg.jersey;
+    _jerseyGrad = ctx.createLinearGradient(0, -10, 0, 10);
+    _jerseyGrad.addColorStop(0, shade(charCfg.jersey, 1.18));
+    _jerseyGrad.addColorStop(1, shade(charCfg.jersey, 0.74));
+  }
+  return _jerseyGrad;
 }
 
 // ---------- Audio ----------
@@ -1855,18 +1859,20 @@ function nanBoat(x, y, s) {
   ctx.strokeStyle = "#9aa6b2"; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(2, -22); ctx.lineTo(2, 0); ctx.stroke();
   ctx.restore();
 }
+// the four foreground gradients (sand / harbor / lane / open sea) are fixed —
+// build them once instead of every frame
+const NAN_HZ = Math.round(H * 0.66);
+const NAN_FG = (() => {
+  const mk = (c0, c1) => { const g = ctx.createLinearGradient(0, NAN_HZ, 0, H); g.addColorStop(0, c0); g.addColorStop(1, c1); return g; };
+  return [mk("#ecdcab", "#d6bf86"), mk("#86b6d4", "#5d97bd"), mk("#c7d49a", "#aebd7f"), mk("#6aa6cf", "#3f7cab")];
+})();
 function drawNantucketScene(alt, j) {
   if (phase !== 6) return;
-  const horizon = Math.round(H * 0.66);
+  const horizon = NAN_HZ;
   const band = nanBand(alt);
 
   // foreground surface below the horizon: sand, lane, harbor or open sea
-  const sg = ctx.createLinearGradient(0, horizon, 0, H);
-  if (band === 0) { sg.addColorStop(0, "#ecdcab"); sg.addColorStop(1, "#d6bf86"); }
-  else if (band === 2) { sg.addColorStop(0, "#c7d49a"); sg.addColorStop(1, "#aebd7f"); }
-  else if (band === 3) { sg.addColorStop(0, "#6aa6cf"); sg.addColorStop(1, "#3f7cab"); }
-  else { sg.addColorStop(0, "#86b6d4"); sg.addColorStop(1, "#5d97bd"); }
-  ctx.fillStyle = sg; ctx.fillRect(0, horizon, W, H - horizon);
+  ctx.fillStyle = NAN_FG[band]; ctx.fillRect(0, horizon, W, H - horizon);
   if (band === 0) { ctx.fillStyle = "#7fb0cf"; ctx.fillRect(0, horizon - 9, W, 9); } // sea behind the beach
   if (band === 1 || band === 3) { // water shimmer
     ctx.strokeStyle = "rgba(255,255,255,0.22)"; ctx.lineWidth = 1;
@@ -1912,18 +1918,14 @@ function drawNantucketScene(alt, j) {
 // ---------- The Chicken Box: a dark cash-only dive bar with a live band ----------
 function drawChickenBoxScene() {
   if (phase !== 5) return;
-  ctx.fillStyle = "#1f1712"; ctx.fillRect(0, 0, W, H); // dark wood back wall
-  ctx.strokeStyle = "rgba(0,0,0,0.4)"; ctx.lineWidth = 1;
-  for (let x = 14; x < W; x += 30) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
-
-  // a faint light-blue blackout haze drifting through
+  // the whole static bar (wall, neon glow, stage, shelf, CASH ONLY, counter) is
+  // baked once — this is a single drawImage instead of a per-frame shadowBlur
+  ctx.drawImage(barCanvas, 0, 0, W, H);
+  // faint light-blue blackout haze drifting through
   ctx.globalAlpha = 0.06 + 0.04 * Math.sin(t * 0.04);
   ctx.fillStyle = "#5be1ff"; ctx.fillRect(0, 0, W, H);
   ctx.globalAlpha = 1;
-
-  // string lights swagged across the top
-  ctx.strokeStyle = "rgba(180,150,90,0.5)"; ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.moveTo(0, 40); ctx.quadraticCurveTo(W / 2, 60, W, 40); ctx.stroke();
+  // string-light bulbs flickering on the (baked) wire
   for (let i = 0; i <= 10; i++) {
     const lx = i / 10 * W, ly = 40 + Math.sin(i / 10 * 3.14) * 20;
     ctx.fillStyle = ["#ffd27a", "#ff8a8a", "#8ad7ff", "#b6ff8a"][i % 4];
@@ -1931,51 +1933,8 @@ function drawChickenBoxScene() {
     ctx.beginPath(); ctx.arc(lx, ly, 2.4, 0, 6.28); ctx.fill();
   }
   ctx.globalAlpha = 1;
-
-  // neon "THE CHICKEN BOX" sign, sitting below the HUD with the odd flicker
-  const flick = (t % 200) < 4 ? 0.45 : 1;
-  ctx.globalAlpha = flick;
-  ctx.fillStyle = "#0c0c12"; ctx.fillRect(W / 2 - 92, 102, 184, 44);
-  ctx.strokeStyle = "rgba(91,225,255,0.8)"; ctx.lineWidth = 2; ctx.strokeRect(W / 2 - 92, 102, 184, 44);
-  ctx.shadowColor = "#ff5bd0"; ctx.shadowBlur = 12;
-  ctx.fillStyle = "#ff8ad8"; ctx.font = "bold 20px Arial"; ctx.textAlign = "center";
-  ctx.fillText("THE CHICKEN", W / 2, 123);
-  ctx.shadowColor = "#5be1ff"; ctx.fillStyle = "#9af0ff"; ctx.fillText("BOX", W / 2, 141);
-  ctx.shadowBlur = 0; ctx.globalAlpha = 1;
-
-  // a little stage with a band silhouette, off to the side (kept low)
-  const sx = 40, sy = 232;
-  ctx.fillStyle = "#0e0b08"; ctx.fillRect(sx - 28, sy, 96, 30);
-  ctx.fillStyle = "#15110c";
-  for (let i = 0; i < 3; i++) { // three musicians
-    const mx = sx - 14 + i * 28;
-    ctx.beginPath(); ctx.arc(mx, sy - 4, 4, 0, 6.28); ctx.fill();
-    ctx.fillRect(mx - 4, sy, 8, 0);
-    ctx.beginPath(); ctx.moveTo(mx - 5, sy); ctx.lineTo(mx, sy - 2); ctx.lineTo(mx + 5, sy); ctx.lineTo(mx, sy + 2); ctx.fill();
-  }
-  ctx.strokeStyle = "rgba(255,210,120,0.5)"; ctx.lineWidth = 1; // mic stand
-  ctx.beginPath(); ctx.moveTo(sx + 24, sy - 12); ctx.lineTo(sx + 24, sy); ctx.stroke();
-
-  // bottle shelf behind the bar (right side, kept low)
-  for (let i = 0; i < 7; i++) {
-    ctx.fillStyle = ["#3a6b3a", "#6b3a2a", "#b9a23a", "#2a4a6b"][i % 4];
-    ctx.fillRect(W - 150 + i * 20, 214, 8, 20);
-  }
-  ctx.fillStyle = "#4a3526"; ctx.fillRect(W - 154, 234, 150, 4); // shelf
-
-  // CASH ONLY placard, up in the top corner clear of the bouncer
-  ctx.save(); ctx.translate(W - 56, 176); ctx.rotate(-0.08);
-  ctx.fillStyle = "#f4ead0"; ctx.fillRect(-30, -12, 60, 24);
-  ctx.strokeStyle = "#1c5a3a"; ctx.lineWidth = 2; ctx.strokeRect(-30, -12, 60, 24);
-  ctx.fillStyle = "#1c5a3a"; ctx.font = "bold 11px Arial"; ctx.textAlign = "center";
-  ctx.fillText("CASH ONLY", 0, 4);
-  ctx.restore();
-
-  // the bar counter runs along just above the floor
-  const fy = cameraY + H - 50 - cameraY; // floor platform's screen y
-  ctx.fillStyle = "#5e3c1f"; ctx.fillRect(0, fy - 26, W, 26);
-  ctx.fillStyle = "#774e28"; ctx.fillRect(0, fy - 26, W, 5);
-  ctx.fillStyle = "rgba(255,255,255,0.08)"; ctx.fillRect(0, fy - 25, W, 2);
+  // the odd neon flicker — a cheap dim over the sign
+  if ((t % 200) < 4) { ctx.fillStyle = "rgba(12,12,18,0.5)"; ctx.fillRect(W / 2 - 92, 102, 184, 44); }
 }
 
 function drawGoose(g) {
@@ -2101,6 +2060,56 @@ function drawStadium() {
   if (gy - STADIUM_TOP > H || gy + (STADIUM_H - STADIUM_TOP) < 0) return;
   ctx.drawImage(stadiumCanvas, 0, gy - STADIUM_TOP, W, STADIUM_H);
 }
+
+// The Chicken Box bar, baked once (the neon's shadowBlur is the priciest op in
+// the game — doing it per frame can hitch on phones, so we render it a single
+// time and just drawImage it during the fight).
+const barCanvas = document.createElement("canvas");
+(function bakeBar() {
+  barCanvas.width = W * 2; barCanvas.height = H * 2;
+  const c = barCanvas.getContext("2d"); c.scale(2, 2);
+  c.fillStyle = "#1f1712"; c.fillRect(0, 0, W, H); // dark wood wall
+  c.strokeStyle = "rgba(0,0,0,0.4)"; c.lineWidth = 1;
+  for (let x = 14; x < W; x += 30) { c.beginPath(); c.moveTo(x, 0); c.lineTo(x, H); c.stroke(); }
+  c.strokeStyle = "rgba(180,150,90,0.5)"; c.lineWidth = 1; // string-light wire
+  c.beginPath(); c.moveTo(0, 40); c.quadraticCurveTo(W / 2, 60, W, 40); c.stroke();
+  // neon sign (glow baked in)
+  c.fillStyle = "#0c0c12"; c.fillRect(W / 2 - 92, 102, 184, 44);
+  c.strokeStyle = "rgba(91,225,255,0.8)"; c.lineWidth = 2; c.strokeRect(W / 2 - 92, 102, 184, 44);
+  c.shadowColor = "#ff5bd0"; c.shadowBlur = 12;
+  c.fillStyle = "#ff8ad8"; c.font = "bold 20px Arial"; c.textAlign = "center";
+  c.fillText("THE CHICKEN", W / 2, 123);
+  c.shadowColor = "#5be1ff"; c.fillStyle = "#9af0ff"; c.fillText("BOX", W / 2, 141);
+  c.shadowBlur = 0;
+  // stage + band
+  const sx = 40, sy = 232;
+  c.fillStyle = "#0e0b08"; c.fillRect(sx - 28, sy, 96, 30);
+  c.fillStyle = "#15110c";
+  for (let i = 0; i < 3; i++) {
+    const mx = sx - 14 + i * 28;
+    c.beginPath(); c.arc(mx, sy - 4, 4, 0, 6.28); c.fill();
+    c.beginPath(); c.moveTo(mx - 5, sy); c.lineTo(mx, sy - 2); c.lineTo(mx + 5, sy); c.lineTo(mx, sy + 2); c.fill();
+  }
+  c.strokeStyle = "rgba(255,210,120,0.5)"; c.lineWidth = 1;
+  c.beginPath(); c.moveTo(sx + 24, sy - 12); c.lineTo(sx + 24, sy); c.stroke();
+  // bottle shelf
+  for (let i = 0; i < 7; i++) {
+    c.fillStyle = ["#3a6b3a", "#6b3a2a", "#b9a23a", "#2a4a6b"][i % 4];
+    c.fillRect(W - 150 + i * 20, 214, 8, 20);
+  }
+  c.fillStyle = "#4a3526"; c.fillRect(W - 154, 234, 150, 4);
+  // CASH ONLY placard
+  c.save(); c.translate(W - 56, 176); c.rotate(-0.08);
+  c.fillStyle = "#f4ead0"; c.fillRect(-30, -12, 60, 24);
+  c.strokeStyle = "#1c5a3a"; c.lineWidth = 2; c.strokeRect(-30, -12, 60, 24);
+  c.fillStyle = "#1c5a3a"; c.font = "bold 11px Arial"; c.textAlign = "center"; c.fillText("CASH ONLY", 0, 4);
+  c.restore();
+  // bar counter (floor sits at a fixed H-50 in the arena)
+  const fy = H - 50;
+  c.fillStyle = "#5e3c1f"; c.fillRect(0, fy - 26, W, 26);
+  c.fillStyle = "#774e28"; c.fillRect(0, fy - 26, W, 5);
+  c.fillStyle = "rgba(255,255,255,0.08)"; c.fillRect(0, fy - 25, W, 2);
+})();
 
 // ---------- Entity drawing ----------
 function drawPlatform(p) {
