@@ -280,6 +280,13 @@ const SND = {
   coin:   () => sfx(880, 0.08, "triangle", 0.040, 200),
   shield: () => sfx(660, 0.30, "sine", 0.050, 220),
   eagle:  () => sfx(1100, 0.28, "sawtooth", 0.035, -550),
+  // the private jet spooling up and roaring off the runway
+  jet: () => {
+    sfx(80,  0.42, "sawtooth", 0.022, 200);
+    setTimeout(() => sfx(180, 0.50, "sawtooth", 0.036, 440), 110);
+    setTimeout(() => sfx(320, 0.62, "sawtooth", 0.048, 820), 250);
+    setTimeout(() => sfx(900, 0.45, "square",   0.012, 700), 300);
+  },
   flap:   () => sfx(180, 0.12, "triangle", 0.028, 60),
   // a cool sci-fi warp: a quick whoosh-in, a big sweep up and away, a detuned
   // shimmer, then a little ascending sparkle as you pop out the other side
@@ -687,14 +694,18 @@ function tryShoot(cx, cy) {
     SND.shot();
     return true;
   }
-  let bestD = 52, target = null;
+  let bestD = Infinity, target = null;
   for (const d of defenders) {
     if (d.dead) continue;
     // never throw a second ball at a monster that already has one on the way — a
     // repeat tap on it falls through to steering instead (tryShoot returns false)
     if (shots.some(s => s.target === d)) continue;
     const dist = Math.hypot(d.x - cx, (d.y - cameraY) - cy);
-    if (dist < bestD) { bestD = dist; target = d; }
+    // a monster clearly below you needs a more precise (closer-to-center) tap so a
+    // casual steering tap near it doesn't fire by accident; above/beside/nearby keep
+    // the original, more forgiving reach.
+    const reach = d.y > player.y + 18 ? 30 : 52;
+    if (dist < reach && dist < bestD) { bestD = dist; target = d; }
   }
   if (!target) return false;
   ammo--;
@@ -900,17 +911,16 @@ function update() {
         burst(ix, iy, 8, phase === 6 ? "#ffd9b0" : "#ffe34d", 2.5, 0.05);
       } else if (p.item === "shield") {
         player.shield = SHIELD_FRAMES;
-        if (phase === 6) { callout("GOOD BOY!"); SND.bark(); }
+        if (phase === 6) { callout("GOOD BOY!"); SND.bark(); setTimeout(() => SND.bark(), 240); }
         else { if (phase >= 3) callout("NICE VEST!"); SND.shield(); }
         burst(ix, iy, 12, phase === 6 ? "#f4c869" : "#5be1ff", 3, 0);
       } else if (p.item === "eagle") {
         player.eagle = EAGLE_FRAMES;
-        SND.eagle();
         // in phase 3 the finance tune is already playing — don't start the solo
         if (phase < 3) startEagleSolo();
-        if (phase === 6) { callout("YOU CHARIOT!"); SND.horse(); }
-        else if (phase === 3) callout("FLYING PRIVATE");
-        else callout("FREE BIRD!");
+        if (phase === 6) { SND.eagle(); callout("YOU CHARIOT!"); SND.horse(); }
+        else if (phase === 3) { SND.jet(); callout("FLYING PRIVATE"); } // jet roars off the runway
+        else { SND.eagle(); callout("FREE BIRD!"); }
         burst(ix, iy, 14, phase === 6 ? "#caa46a" : phase >= 3 ? "#fff" : "#7a5533", 4, 0);
       }
       p.item = null;
