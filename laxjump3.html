@@ -1220,7 +1220,7 @@ function updateBoss() {
       c.taken = true;
       if (ammo < MAX_AMMO) ammo++;
       SND.coin();
-      burst(c.x, c.y, 8, "#ffd23b", 2.5, 0);
+      burst(c.x, c.y, 8, boss && boss.kind === "box" ? "#3aa657" : "#ffd23b", 2.5, 0);
     }
   }
   pickups = pickups.filter(c => !c.taken);
@@ -2449,21 +2449,39 @@ function vestPath(c) {
 function drawSeashell(x, y, s) {
   s = s || 1;
   ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
-  // coral-pink scallop fan opening upward
-  const fan = (top) => { ctx.beginPath(); ctx.moveTo(0, 8);
-    ctx.bezierCurveTo(-13, 8, -11, top, 0, top); ctx.bezierCurveTo(11, top, 13, 8, 0, 8); ctx.closePath(); };
-  fan(-9); ctx.fillStyle = "#f4869c"; ctx.fill();           // coral body
-  fan(-5.5); ctx.fillStyle = "rgba(255,214,226,0.75)"; ctx.fill(); // lighter heart
-  // ribs radiating from the hinge
-  ctx.strokeStyle = "#dd5a73"; ctx.lineWidth = 0.9;
-  for (let i = -3; i <= 3; i++) { ctx.beginPath(); ctx.moveTo(0, 7); ctx.lineTo(i * 2.7, -8.2); ctx.stroke(); }
-  // hinge ears + crisp outline
-  ctx.fillStyle = "#f4869c";
-  ctx.beginPath(); ctx.moveTo(-3, 6.5); ctx.lineTo(-6.5, 9.5); ctx.lineTo(0, 8); ctx.fill();
-  ctx.beginPath(); ctx.moveTo(3, 6.5); ctx.lineTo(6.5, 9.5); ctx.lineTo(0, 8); ctx.fill();
-  fan(-9); ctx.strokeStyle = "#cf4a64"; ctx.lineWidth = 1.1; ctx.stroke();
-  ctx.fillStyle = "rgba(255,255,255,0.85)"; // pearly glint
-  ctx.beginPath(); ctx.arc(-2.5, -1, 1.4, 0, 6.28); ctx.fill();
+  // wide, flat scallop fan: narrow hinge at the bottom, fluted rim up top
+  const N = 7, hw = 12, baseY = 6;
+  const rim = [];
+  for (let i = 0; i <= N; i++) {
+    const fx = -hw + 2 * hw * (i / N);
+    const fy = -2 - Math.sqrt(Math.max(0, 1 - (fx / hw) * (fx / hw))) * 5.5; // gentle arch
+    rim.push({ x: fx, y: fy });
+  }
+  const outline = () => {
+    ctx.beginPath();
+    ctx.moveTo(-3, baseY);
+    ctx.quadraticCurveTo(-hw, baseY - 3, rim[0].x, rim[0].y);  // left side flares out
+    for (let i = 1; i <= N; i++) {
+      const mx = (rim[i - 1].x + rim[i].x) / 2, my = Math.min(rim[i - 1].y, rim[i].y) - 2; // fluted bump
+      ctx.quadraticCurveTo(mx, my, rim[i].x, rim[i].y);
+    }
+    ctx.quadraticCurveTo(hw, baseY - 3, 3, baseY);             // right side back to hinge
+    ctx.closePath();
+  };
+  outline(); ctx.fillStyle = "#f3889d"; ctx.fill();
+  // lighter heart fanning from the hinge
+  ctx.fillStyle = "rgba(255,224,233,0.5)";
+  ctx.beginPath(); ctx.moveTo(0, baseY - 1); ctx.lineTo(-5, -2.5); ctx.lineTo(5, -2.5); ctx.closePath(); ctx.fill();
+  // ribs radiating to each lobe
+  ctx.strokeStyle = "#dd5a73"; ctx.lineWidth = 0.8;
+  for (let i = 0; i <= N; i++) { ctx.beginPath(); ctx.moveTo(0, baseY - 1); ctx.lineTo(rim[i].x * 0.9, rim[i].y + 1); ctx.stroke(); }
+  // small hinge umbo (the beak) at the bottom centre
+  ctx.fillStyle = "#e06f88";
+  ctx.beginPath(); ctx.moveTo(-3, baseY); ctx.lineTo(0, baseY + 2.6); ctx.lineTo(3, baseY); ctx.closePath(); ctx.fill();
+  // crisp outline + pearly glint
+  outline(); ctx.strokeStyle = "#cf4a64"; ctx.lineWidth = 1; ctx.stroke();
+  ctx.fillStyle = "rgba(255,255,255,0.8)";
+  ctx.beginPath(); ctx.arc(-3, -1, 1.2, 0, 6.28); ctx.fill();
   ctx.restore();
 }
 const BEER_COLS = ["#f3d35a", "#e0962f", "#c8741f", "#8a4a1c", "#f6c34a"];
@@ -2880,11 +2898,6 @@ function drawPlayerSprite(x, y, f) {
 function drawPlayer() {
   const x = player.x, y = player.y - cameraY;
 
-  // a chariot and two galloping horses carrying you skyward (Nantucket)
-  if (player.eagle > 0 && phase === 6) {
-    drawChariot(x + player.facing * 20, y + 14, 1.0, player.facing);
-  }
-
   // phase 3/5: the little baggie hovers over you, spraying as it lifts
   if (player.eagle > 0 && phase >= 3 && phase !== 6) {
     const by2 = y - 46 + Math.sin(t * 0.3) * 2.5;
@@ -2962,6 +2975,12 @@ function drawPlayer() {
     ctx.restore();
   } else {
     drawPlayerSprite(x, y, player.facing);
+  }
+
+  // the chariot is drawn AFTER the player so its car wraps in front of the
+  // legs — you look like you're standing in it, two horses galloping ahead
+  if (player.eagle > 0 && phase === 6) {
+    drawChariot(x + player.facing * 20, y + 14, 1.0, player.facing);
   }
 
   // carrying an egg home
@@ -3353,7 +3372,7 @@ function drawBossHUD() {
   }
   ctx.fillStyle = "rgba(255,255,255,0.7)";
   ctx.font = "11px Arial";
-  ctx.fillText(box ? "grab balls · tap him to throw · 20 hits"
+  ctx.fillText(box ? "grab money · tap him to throw · 20 hits"
                    : "grab balls · tap him to shoot · 10 hits", W / 2, 86);
 }
 
@@ -3361,7 +3380,7 @@ function drawBossShots() {
   // red so they read instantly as hostile (yours are yellow / seashell)
   for (const b of bossShots) {
     const y = b.y - cameraY;
-    ctx.fillStyle = b.ring ? "#ff7a3c" : "#e84a3a";
+    ctx.fillStyle = "#e84a3a"; // red, same as the PE boss (rings included)
     ctx.beginPath(); ctx.arc(b.x, y, 7, 0, 6.28); ctx.fill();
     ctx.strokeStyle = "#8f1812"; ctx.lineWidth = 1.5; ctx.stroke();
     ctx.fillStyle = "rgba(255,255,255,0.6)";
@@ -3374,6 +3393,7 @@ function drawBossShots() {
 function drawPickups() {
   for (const c of pickups) {
     const y = c.y - cameraY + Math.sin(t * 0.1 + c.x) * 3;
+    if (phase === 5) { drawCashStack(c.x, y); continue; } // money at the Chicken Box
     ctx.fillStyle = "#ffe34d";
     ctx.beginPath(); ctx.arc(c.x, y, 8, 0, 6.28); ctx.fill();
     ctx.strokeStyle = "#c8a800"; ctx.lineWidth = 1.5; ctx.stroke();
