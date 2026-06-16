@@ -3586,11 +3586,11 @@ function drawHUD() {
     ctx.fillStyle = "#a87b46"; ctx.fillRect(30, by - 5, 70 * player.eagle / EAGLE_FRAMES, 7);
   }
 
-  // a one-time nudge that the game is tap-to-move (tilt was removed)
+  // a one-time nudge for the tap controls (tilt was removed)
   if (isTouch && score < 250 && phase === 1) {
     ctx.fillStyle = "rgba(255,255,255,0.7)";
     ctx.font = "13px Arial"; ctx.textAlign = "center";
-    ctx.fillText("tap left / right to move", W / 2, H - 16);
+    ctx.fillText("tap left/right to move - tap defenders to shoot", W / 2, H - 16);
   }
 }
 
