@@ -3587,7 +3587,7 @@ function drawHUD() {
   }
 
   // a one-time nudge for the tap controls (tilt was removed)
-  if (isTouch && score < 250 && phase === 1) {
+  if (isTouch && score < 500 && phase === 1) {
     ctx.fillStyle = "rgba(255,255,255,0.7)";
     ctx.font = "13px Arial"; ctx.textAlign = "center";
     ctx.fillText("tap left / right to move — tap defenders to shoot", W / 2, H - 16);
