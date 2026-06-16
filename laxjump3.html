@@ -386,7 +386,6 @@ let cameraY, score, ammo, newBest, overAt, lastPortalY, mileIdx, t = 0;
 // phase 1 = lacrosse climb, 2 = PE boss arena, 3 = private equity climb,
 // 5 = chicken box boss arena, 6 = nantucket climb, 4 = goose farm (the very top)
 let phase, boss, bossShots, pickups, srcDigit, tickers, farm, overTitle, startBest;
-let rackBoost; // PE only: a small, decaying bump to jet odds after each one
 let stats; // squids, acq (businesses acquired), cash (net worth $)
 let best = +(localStorage.getItem(KEY.best) || 0);
 let isTouch = false;
@@ -432,15 +431,15 @@ function spawnPlatformAt(y) {
   const p = newPlatform(rand(8, W - PLAT_W - 8), y, type);
 
   if (type === "normal") {
-    // same odds in both halves of the game (matches Lax Jump 1). In PE a recent
-    // a recent jet nudges the next jet's odds up a touch (subtle — never obvious).
+    // One shared eagle rate for the whole game — the lacrosse eagle, the PE jet and
+    // the Nantucket chariot all turn up on about 1 in 100 platforms. (Items only sit
+    // on plain bars, ~60% of platforms, so the roll is scaled to land that 1-in-100.)
     const ir = Math.random();
-    const eagleOdds = 0.012 + (phase === 3 ? rackBoost : 0);
+    const eagleOdds = 0.0167;
     if (ir < eagleOdds) p.item = "eagle";
     else if (ir < 0.05) p.item = "shield";
     else if (ir < 0.14) p.item = "ball";
   }
-  if (rackBoost > 0) rackBoost *= 0.9; // decays back to baseline over a few spawns
   // portal (a few per run)
   if (type === "normal" && y < lastPortalY - 2000 && Math.random() < 0.03) {
     p.portal = true;
@@ -470,7 +469,6 @@ function reset() {
   callOut = null;
   phase = 1; boss = null; bossShots = []; pickups = []; srcDigit = 0;
   tickers = []; farm = null; overTitle = "CHECKED!"; startBest = best;
-  rackBoost = 0;
   stopAllTunes();
 
   platforms.push(newPlatform(W / 2 - PLAT_W / 2, H - 90, "normal"));
@@ -886,11 +884,8 @@ function update() {
         // in phase 3 the finance tune is already playing — don't start the solo
         if (phase < 3) startEagleSolo();
         if (phase === 6) { callout("YOU CHARIOT!"); SND.horse(); }
-        else if (phase === 3) {
-          // boarding a jet makes the next one a touch more likely (subtle)
-          rackBoost = Math.min(0.018, rackBoost + 0.01);
-          callout("FLYING PRIVATE");
-        } else callout("FREE BIRD!");
+        else if (phase === 3) callout("FLYING PRIVATE");
+        else callout("FREE BIRD!");
         burst(ix, iy, 14, phase === 6 ? "#caa46a" : phase >= 3 ? "#fff" : "#7a5533", 4, 0);
       }
       p.item = null;
@@ -1375,12 +1370,15 @@ function spawnBanner(msg) {
   const boat = nanBand(alt) >= 3;
   const fromLeft = Math.random() < 0.5;
   const span = msg.length * 8 + 110;
+  // Start just off the edge (not a full span away) and cross at a steady clip, so
+  // the banner is actually on screen for a good while instead of crawling in from
+  // far off and getting left behind by the climb's parallax before you see it.
   banners.push({
     msg, kind: boat ? "boat" : "plane",
     p: boat ? 0.5 : 0.82,
     wy: (boat ? rand(250, 360) : rand(72, 188)) + cameraY * (boat ? 0.5 : 0.82),
-    x: fromLeft ? -span : W + span,
-    vx: fromLeft ? (boat ? 0.85 : 0.7) : -(boat ? 0.85 : 0.7),
+    x: fromLeft ? -span * 0.45 : W + span * 0.45,
+    vx: fromLeft ? 1.0 : -1.0,
   });
 }
 
@@ -1425,7 +1423,7 @@ function updateDecor() {
                     col: Math.random() < 0.5 ? "#d8332a" : "#ff7a1a" });
   }
   // Nantucket banner sayings, ambient (plane in town, boat over the water)
-  if (phase === 6 && banners.length < 2 && Math.random() < 0.006) {
+  if (phase === 6 && banners.length < 2 && Math.random() < 0.009) {
     spawnBanner(NAN_BANNER_MSGS[Math.floor(Math.random() * NAN_BANNER_MSGS.length)]);
   }
   clouds = clouds.filter(c => c.wy - cameraY * c.p < H + 90 && c.x > -120 && c.x < W + 120);
