@@ -164,6 +164,15 @@ function tone(freq, dur, type, vol, slide) {
 function sfx(freq, dur, type, vol, slide) {
   if (settings.sfx) tone(freq, dur, type, vol, slide);
 }
+// Level/boss music is a brief sting: it kicks in at each transition, plays for a
+// few seconds, then stops on its own so the climb itself stays quiet. (The eagle
+// flight solo below is tied to the powerup, not a transition, so it's left alone.)
+const MUSIC_STING_MS = 6000;
+let tuneStopTimer = null;
+function autoStopTune(stopFn) {
+  clearTimeout(tuneStopTimer);
+  tuneStopTimer = setTimeout(stopFn, MUSIC_STING_MS);
+}
 // Original southern-rock style solo for the eagle flight (a Free Bird homage —
 // the real recording is copyrighted, so this riff is our own).
 let soloTimer = null;
@@ -201,6 +210,7 @@ function startFinanceTune() {
     if (i % 4 === 2) tone(2200, 0.04, "square", 0.008, 0); // hi-hat tick
     i++;
   }, 165);
+  autoStopTune(stopFinanceTune);
 }
 function stopFinanceTune() {
   if (financeTimer) { clearInterval(financeTimer); financeTimer = null; }
@@ -221,6 +231,7 @@ function startBeachTune() {
     if (lead) { tone(lead, 0.26, "triangle", 0.028, 0); tone(lead * 2, 0.16, "sine", 0.010, 0); }
     i++;
   }, 230);
+  autoStopTune(stopBeachTune);
 }
 function stopBeachTune() { if (beachTimer) { clearInterval(beachTimer); beachTimer = null; } }
 
@@ -236,6 +247,7 @@ function startFarmTune() {
     if (i % 8 === 0) tone(196, 1.1, "sine", 0.026, 0); // low warm pad
     i++;
   }, 360);
+  autoStopTune(stopFarmTune);
 }
 function stopFarmTune() { if (farmTimer) { clearInterval(farmTimer); farmTimer = null; } }
 
@@ -253,11 +265,12 @@ function startBarTune() {
     if (i % 4 === 2) tone(2400, 0.03, "square", 0.010, 0); // hat
     i++;
   }, 150);
+  autoStopTune(stopBarTune);
 }
 function stopBarTune() { if (barTimer) { clearInterval(barTimer); barTimer = null; } }
 
 // kills every loop in one call — used on reset, pause, game over and transitions
-function stopAllTunes() { stopEagleSolo(); stopFinanceTune(); stopBeachTune(); stopFarmTune(); stopBarTune(); }
+function stopAllTunes() { stopEagleSolo(); stopFinanceTune(); stopBeachTune(); stopFarmTune(); stopBarTune(); clearTimeout(tuneStopTimer); }
 
 const SND = {
   bounce: () => sfx(300, 0.10, "square", 0.030, 150),
