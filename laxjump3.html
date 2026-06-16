@@ -281,7 +281,16 @@ const SND = {
   shield: () => sfx(660, 0.30, "sine", 0.050, 220),
   eagle:  () => sfx(1100, 0.28, "sawtooth", 0.035, -550),
   flap:   () => sfx(180, 0.12, "triangle", 0.028, 60),
-  portal: () => sfx(180, 0.60, "sine", 0.060, 900),
+  // a cool sci-fi warp: a quick whoosh-in, a big sweep up and away, a detuned
+  // shimmer, then a little ascending sparkle as you pop out the other side
+  portal: () => {
+    sfx(540, 0.16, "sine", 0.045, -360);
+    setTimeout(() => { sfx(190, 0.52, "sine", 0.052, 880);
+                       sfx(286, 0.50, "triangle", 0.024, 1040); }, 90);
+    setTimeout(() => sfx(1046, 0.09, "triangle", 0.030, 240), 250);
+    setTimeout(() => sfx(1318, 0.09, "triangle", 0.026, 240), 320);
+    setTimeout(() => sfx(1568, 0.13, "sine", 0.024, 360), 390);
+  },
   ko:     () => sfx(180, 0.15, "square", 0.050, -80),
   over:   () => sfx(240, 0.50, "sawtooth", 0.055, -180),
   // a quick two-note ruff for the golden retriever
@@ -681,6 +690,9 @@ function tryShoot(cx, cy) {
   let bestD = 52, target = null;
   for (const d of defenders) {
     if (d.dead) continue;
+    // never throw a second ball at a monster that already has one on the way — a
+    // repeat tap on it falls through to steering instead (tryShoot returns false)
+    if (shots.some(s => s.target === d)) continue;
     const dist = Math.hypot(d.x - cx, (d.y - cameraY) - cy);
     if (dist < bestD) { bestD = dist; target = d; }
   }
@@ -2639,7 +2651,7 @@ function drawDog(x, y, s, f) {
 // tilts/mirrors the whole thing (with the rider) when it's flying.
 function drawChariot(x, y, s) {
   s = s || 1;
-  const gallop = Math.sin(t * 0.6) * 1.5, g2 = Math.sin(t * 0.6 + 1.3) * 1.5;
+  const gallop = Math.sin(t * 0.26) * 1.3, g2 = Math.sin(t * 0.26 + 1.3) * 1.3;
   ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
   // spoked wheel (centred under the car)
   ctx.strokeStyle = "#6e4421"; ctx.lineWidth = 2.4;
