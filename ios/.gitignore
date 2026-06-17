@@ -1,13 +1,13 @@
 App/build
 App/Pods
 App/output
-App/App/public
 DerivedData
 xcuserdata
 
 # Cordova plugins for Capacitor
 capacitor-cordova-ios-plugins
 
-# Generated Config files
-App/App/capacitor.config.json
-App/App/config.xml
+# NOTE: App/App/public, App/App/capacitor.config.json and App/App/config.xml are
+# intentionally tracked (not ignored) so the repo is clone-and-build with only
+# Xcode — they are required inputs of the app's Resources build phase. To refresh
+# the web bundle after game changes, re-run `npx cap sync ios` and commit public/.
