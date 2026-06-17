@@ -413,7 +413,7 @@ const BOX_RING_PHRASE = "YOU CAN GO TO THE PATIO IF YOU WANT TO VAPE";
 let state = "title"; // title | playing | gameover
 let player, platforms, coins, defenders, parts, shots, floats;
 let clouds, birds, blimps, balloons, banners;
-let cameraY, score, ammo, newBest, overAt, lastPortalY, mileIdx, t = 0;
+let cameraY, score, ammo, newBest, overAt, lastPortalY, mileIdx, levelStartScore, t = 0;
 // phase 1 = lacrosse climb, 2 = PE boss arena, 3 = private equity climb,
 // 5 = chicken box boss arena, 6 = nantucket climb, 4 = goose farm (the very top)
 let phase, boss, bossShots, pickups, srcDigit, tickers, farm, overTitle, startBest;
@@ -482,7 +482,7 @@ function spawnPlatformAt(y) {
   if (Math.random() < 0.12) {
     coins.push({ x: rand(25, W - 25), y: y - rand(25, 65), taken: false });
   }
-  if (score > 1200 && Math.random() < 0.05 + 0.05 * d) {
+  if (score > 1200 && score - levelStartScore >= 250 && Math.random() < 0.05 + 0.05 * d) {
     const dx = rand(45, W - 45);
     if (defenderSafe(dx, y - 65)) {
       defenders.push({ x: dx, y: y - 65, t: Math.random() * 6.28, dead: false });
@@ -495,7 +495,7 @@ function reset() {
   stats = { squids: 0, acq: 0, cash: 0 };
   platforms = []; coins = []; defenders = []; parts = []; shots = []; floats = [];
   clouds = []; birds = []; blimps = []; balloons = []; banners = [];
-  cameraY = 0; score = 0; ammo = 0; newBest = false; mileIdx = 0;
+  cameraY = 0; score = 0; ammo = 0; newBest = false; mileIdx = 0; levelStartScore = 0;
   lastPortalY = H;
   callOut = null;
   phase = 1; boss = null; bossShots = []; pickups = []; srcDigit = 0;
@@ -1296,6 +1296,8 @@ function defeatBoss() {
     sfx(400, 0.8, "triangle", 0.06, 500);
     startFinanceTune();
   }
+  // grace period: no monster spawns for the first 250 points of the new level
+  levelStartScore = score;
   // the next course materializes upward from the arena floor (solid-ground start)
   lastPortalY = cameraY + H;
   let y = cameraY + H - 170;
