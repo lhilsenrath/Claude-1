@@ -3722,10 +3722,16 @@ function drawTitle() {
 
   const bob = Math.sin(t * 0.06) * 5;
   bigText("LAX", W / 2, 175 + bob * 0.4, 76, "#fff", "#14532d");
-  bigText("JUMP", W / 2, 243 + bob * 0.4, 56, "#ffd23b", "#7a4d00");
-  ctx.fillStyle = "#d4af37";
+  bigText("JUMP", W / 2, 243 + bob * 0.4, 56, "#f5c842", "#161616");
+  ctx.save();
   ctx.font = "bold 15px Arial"; ctx.textAlign = "center";
-  ctx.fillText("the pipeline", W / 2, 290 + bob * 0.4);
+  ctx.lineWidth = 3.2; ctx.lineJoin = "round"; ctx.strokeStyle = "#161616";
+  ctx.shadowColor = "rgba(245,200,66,0.6)"; ctx.shadowBlur = 7;
+  ctx.strokeText("the pipeline", W / 2, 280 + bob * 0.4);
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = "#f5c842";
+  ctx.fillText("the pipeline", W / 2, 280 + bob * 0.4);
+  ctx.restore();
 
   // sprite is right-heavy (the stick), so nudge left to center its visual mass
   drawPlayerSprite(W / 2 - 9, 350 + bob, 1);
