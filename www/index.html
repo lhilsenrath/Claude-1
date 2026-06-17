@@ -1154,7 +1154,7 @@ function enterBoss(kind) {
     callout("FINAL BOSS: CHICKEN BOX BLACKOUT", 150);
     sfx(70, 1.0, "sawtooth", 0.07, -28);
   } else {
-    callout("FINAL BOSS: PRIVATE EQUITY", 140);
+    callout("FINAL BOSS:\nPRIVATE EQUITY INTERVIEW", 140);
     sfx(80, 0.9, "sawtooth", 0.07, -30);
   }
 }
@@ -2055,7 +2055,9 @@ const stadiumCanvas = document.createElement("canvas");
   c.fillRect(0, gy - 18, W, 18);
   c.fillStyle = "#1c7a3c";
   c.font = "bold 12px Arial"; c.textAlign = "center";
-  for (let i = 0; i < 4; i++) c.fillText("🥍 LAX JUMP 🥍", 50 + i * 105, gy - 5);
+  // a lacrosse stick sits evenly spaced (equal gap each side) between each "LAX JUMP"
+  const sep = " ".repeat(4) + "🥍" + " ".repeat(4);
+  c.fillText(Array(4).fill("LAX JUMP").join(sep), W / 2, gy - 5);
 
   // turf
   for (let i = 0; i < 6; i++) {
@@ -3467,7 +3469,7 @@ function drawBossHUD() {
   const hp = boss.maxHp || BOSS_HP;
   ctx.fillStyle = "#fff";
   ctx.font = "bold 14px Arial"; ctx.textAlign = "center";
-  ctx.fillText(box ? "THE BOUNCER" : "PRIVATE EQUITY", W / 2, 56);
+  ctx.fillText(box ? "THE BOUNCER" : "PRIVATE EQUITY INTERVIEW", W / 2, 56);
   const bw = 200, bx = W / 2 - bw / 2, byy = 62;
   ctx.fillStyle = "rgba(0,0,0,0.5)";
   ctx.fillRect(bx - 2, byy - 2, bw + 4, 12);
@@ -3840,9 +3842,13 @@ function draw() {
     drawHUD();
     if (callOut && state === "playing") {
       ctx.globalAlpha = clamp(callOut.life / 20, 0, 1);
-      // shrink long callouts so they never run off the screen
-      const cs = Math.min(34, Math.floor((W - 36) / (callOut.txt.length * 0.62)));
-      bigText(callOut.txt, W / 2, 160, cs, "#ffd23b", "#7a2d00");
+      // \n splits a callout into stacked lines; size to the longest line so it never runs off-screen
+      const lines = callOut.txt.split("\n");
+      const longest = lines.reduce((a, b) => (b.length > a.length ? b : a), "");
+      const cs = Math.min(34, Math.floor((W - 28) / (longest.length * 0.62)));
+      const lh = cs * 1.12;
+      let ly = 160 - ((lines.length - 1) * lh) / 2;
+      for (const ln of lines) { bigText(ln, W / 2, ly, cs, "#ffd23b", "#7a2d00"); ly += lh; }
       ctx.globalAlpha = 1;
     }
   }
