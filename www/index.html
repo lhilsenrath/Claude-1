@@ -1017,9 +1017,10 @@ function update() {
     }
   }
 
-  // camera & score
+  // camera & score — freeze the moment you die so the recorded leaderboard
+  // score matches the "this round" score shown on the game-over screen
   const targetCam = player.y - H * 0.42;
-  if (targetCam < cameraY) {
+  if (state === "playing" && targetCam < cameraY) {
     cameraY = targetCam;
     score = Math.max(score, Math.floor(-cameraY));
   }
