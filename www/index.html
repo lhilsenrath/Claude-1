@@ -829,7 +829,7 @@ function update() {
         if (p.type === "net") {
           player.vy = NET_V;
           SND.net();
-          burst(player.x, p.y, 6, phase === 6 ? "#ffd23b" : "#ffd23b", 2, 0.1);
+          burst(player.x, p.y, 6, "#ffd23b", 2, 0.1);
           callout(phase === 6 ? "CISCO!" : phase >= 3 ? "INVESTED!" : "CHERISHED!");
         } else {
           player.vy = JUMP_V;

@@ -4,7 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "icon:gen": "python3 tools/make-logo.py",
+    "icon": "npx capacitor-assets generate --ios --iconBackgroundColor '#155f34' --splashBackgroundColor '#186639' && npx cap sync ios"
   },
   "repository": {
     "type": "git",
