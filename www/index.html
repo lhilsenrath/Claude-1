@@ -92,6 +92,7 @@ const GRADS = (() => {
     platinum:   mk(4, 15, "#f4f6fa", "#9aa3b2"),
     junk:       mk(4, 15, "#d8d8de", "#b6b6be"),
     suit:       mk(-9, 10, "#4e4e5c", "#1e1e26"),
+    suitDark:   mk(-9, 12, "#34343d", "#0e0e13"),
     building:   mk(-16, 18, "#9aa0aa", "#5e646e"),
     // ----- Nantucket platforms (white & red-striped beach planks) -----
     nanWhite:   mk(5, 14, "#ffffff", "#e2e6ea"),
@@ -2869,36 +2870,94 @@ function drawPlayerSprite(x, y, f) {
     ctx.fillRect(-13, 27, 4, 1.5);
     ctx.fillRect(8, 25, 4, 1.5);
 
-    // suit jacket: broad shoulders tapering to the waist, vented hem
-    ctx.fillStyle = GRADS.suit;
+    // suit jacket — single-breasted with notched lapels and one button.
+    // body: padded shoulders, a slight waist, front quarters curving in at the hem.
+    // a light cool glow hugs the jacket outline (one soft shadow on one fill,
+    // so it doesn't move the needle on frame cost)
     ctx.beginPath();
-    ctx.moveTo(-11, -8);
-    ctx.quadraticCurveTo(-12, -10, -8, -10);
-    ctx.lineTo(8, -10);
-    ctx.quadraticCurveTo(12, -10, 11, -8);
-    ctx.quadraticCurveTo(9, 2, 8, 10);
-    ctx.lineTo(9, 16);
-    ctx.lineTo(2, 14);
-    ctx.lineTo(-2, 14);
-    ctx.lineTo(-9, 16);
-    ctx.lineTo(-8, 10);
-    ctx.quadraticCurveTo(-9, 2, -11, -8);
-    ctx.closePath(); ctx.fill();
-    ctx.strokeStyle = "#9a9aa8"; ctx.lineWidth = 1.2; ctx.stroke();
+    ctx.moveTo(-11, -6);
+    ctx.quadraticCurveTo(-11.5, -10.2, -7.5, -10.6);   // left padded shoulder
+    ctx.lineTo(7.5, -10.6);                             // shoulder line
+    ctx.quadraticCurveTo(11.5, -10.2, 11, -6);          // right padded shoulder
+    ctx.quadraticCurveTo(10, 4, 8.6, 12);               // right side, slight waist
+    ctx.lineTo(8, 16.5);                                // right hem corner
+    ctx.quadraticCurveTo(4, 15.5, 1.6, 12.5);           // right front quarter curving in
+    ctx.lineTo(-1.6, 12.5);                             // centre hem
+    ctx.quadraticCurveTo(-4, 15.5, -8, 16.5);           // left front quarter
+    ctx.lineTo(-8.6, 12);
+    ctx.quadraticCurveTo(-10, 4, -11, -6);              // left side up
+    ctx.closePath();
+    ctx.save();
+    ctx.shadowColor = "rgba(91,225,255,0.4)";
+    ctx.shadowBlur = 6 + Math.sin(t * 0.12) * 2;
+    ctx.fillStyle = GRADS.suitDark;
+    ctx.fill();
+    ctx.restore();
+    // front-closure seam below the button
+    ctx.strokeStyle = "rgba(0,0,0,0.35)"; ctx.lineWidth = 0.8;
+    ctx.beginPath(); ctx.moveTo(0, 9.5); ctx.lineTo(0, 13); ctx.stroke();
+
     // neck
     ctx.fillStyle = "#e8b88a";
     ctx.fillRect(-3, -11, 6, 4);
-    // white shirt + gold tie
-    ctx.fillStyle = "#f2f2f2";
-    ctx.beginPath(); ctx.moveTo(-3, -8); ctx.lineTo(3, -8); ctx.lineTo(2, 8); ctx.lineTo(-2, 8); ctx.closePath(); ctx.fill();
-    ctx.fillStyle = "#c9a227";
-    ctx.beginPath(); ctx.moveTo(-1.5, -7); ctx.lineTo(1.5, -7); ctx.lineTo(1, 6); ctx.lineTo(0, 8); ctx.lineTo(-1, 6); ctx.closePath(); ctx.fill();
-    // lapels
-    ctx.strokeStyle = "#000"; ctx.lineWidth = 1.5;
-    ctx.beginPath(); ctx.moveTo(-3, -8); ctx.lineTo(-7, -1); ctx.moveTo(3, -8); ctx.lineTo(7, -1); ctx.stroke();
-    // pocket square
+
+    // white shirt wedge in the collar opening
+    ctx.fillStyle = "#f3f3f0";
+    ctx.beginPath();
+    ctx.moveTo(-2.7, -9); ctx.lineTo(2.7, -9);
+    ctx.lineTo(1.3, 7); ctx.lineTo(-1.3, 7);
+    ctx.closePath(); ctx.fill();
+
+    // gold tie: knot at the collar, blade widening to a point
+    ctx.fillStyle = "#caa227";
+    ctx.beginPath();
+    ctx.moveTo(-1, -6.5); ctx.lineTo(1, -6.5);
+    ctx.lineTo(1.7, 5.5); ctx.lineTo(0, 8); ctx.lineTo(-1.7, 5.5);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = "#b6901d"; // knot
+    ctx.beginPath();
+    ctx.moveTo(-1.5, -8.6); ctx.lineTo(1.5, -8.6);
+    ctx.lineTo(1, -6); ctx.lineTo(-1, -6);
+    ctx.closePath(); ctx.fill();
+
+    // notched lapels folding back from the collar to a point mid-chest
+    ctx.fillStyle = "#3d3d49";
+    ctx.beginPath();                       // left lapel
+    ctx.moveTo(-2.7, -9.2);                //   gorge (inner top, by the collar)
+    ctx.lineTo(-7, -9.6);                  //   collar/lapel top out to the shoulder
+    ctx.lineTo(-6.6, -7);                  //   notch outer corner
+    ctx.lineTo(-4.3, 2.4);                 //   outer fold down to the lapel point
+    ctx.lineTo(-2.5, 0);                   //   inner edge back up beside the shirt
+    ctx.closePath(); ctx.fill();
+    ctx.beginPath();                       // right lapel (mirror)
+    ctx.moveTo(2.7, -9.2);
+    ctx.lineTo(7, -9.6);
+    ctx.lineTo(6.6, -7);
+    ctx.lineTo(4.3, 2.4);
+    ctx.lineTo(2.5, 0);
+    ctx.closePath(); ctx.fill();
+    // fold-crease highlight, then the notch cut
+    ctx.lineWidth = 0.8; ctx.strokeStyle = "rgba(155,155,178,0.5)";
+    ctx.beginPath();
+    ctx.moveTo(-2.7, -9.2); ctx.lineTo(-4.3, 2.4);
+    ctx.moveTo(2.7, -9.2); ctx.lineTo(4.3, 2.4);
+    ctx.stroke();
+    ctx.lineWidth = 0.7; ctx.strokeStyle = "rgba(0,0,0,0.55)";
+    ctx.beginPath();
+    ctx.moveTo(-7, -9.6); ctx.lineTo(-6.6, -7);
+    ctx.moveTo(7, -9.6); ctx.lineTo(6.6, -7);
+    ctx.stroke();
+
+    // one button where the jacket closes, just below the tie
+    ctx.fillStyle = "#0c0c10";
+    ctx.beginPath(); ctx.arc(0, 9.4, 1.1, 0, 6.28); ctx.fill();
+    ctx.strokeStyle = "rgba(155,155,178,0.45)"; ctx.lineWidth = 0.5; ctx.stroke();
+
+    // breast pocket + pocket square (wearer's left = viewer's right)
+    ctx.strokeStyle = "rgba(0,0,0,0.5)"; ctx.lineWidth = 0.7;
+    ctx.beginPath(); ctx.moveTo(5.2, -4.6); ctx.lineTo(8.2, -5.2); ctx.stroke();
     ctx.fillStyle = "#fff";
-    ctx.beginPath(); ctx.moveTo(5, -3); ctx.lineTo(9, -3); ctx.lineTo(7, 0); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(5.6, -5); ctx.lineTo(7.9, -5.4); ctx.lineTo(6.7, -3.4); ctx.closePath(); ctx.fill();
 
     // arms
     ctx.strokeStyle = "#15151b"; ctx.lineWidth = 4;
@@ -2907,12 +2966,30 @@ function drawPlayerSprite(x, y, f) {
     ctx.beginPath(); ctx.arc(17, 6, 3, 0, 6.28); ctx.fill();
     ctx.beginPath(); ctx.arc(-14, 7, 3, 0, 6.28); ctx.fill();
 
-    // head: slicked hair + shades + smug chin
+    // head: flowy swept-back blonde hair (lacrosse flow meets finance) + shades
     ctx.fillStyle = "#e8b88a";
     ctx.beginPath(); ctx.arc(0, -17, 9.5, 0, 6.28); ctx.fill();
-    ctx.fillStyle = "#181210"; // slicked-back hair
-    ctx.beginPath(); ctx.arc(0, -19, 9.5, 3.34, 6.0); ctx.fill();
-    ctx.beginPath(); ctx.moveTo(-9, -20); ctx.quadraticCurveTo(-11, -14, -8, -11); ctx.lineTo(-6, -16); ctx.closePath(); ctx.fill();
+    // short blonde hair, swept up and back off the forehead, hugging the skull
+    // (the "short" cut — what'd sit under a helmet; no long flow in back)
+    ctx.fillStyle = "#e9c463";
+    ctx.beginPath();
+    ctx.moveTo(5.5, -22);                              // front hairline, pushed back above the shades
+    ctx.quadraticCurveTo(8.5, -25.5, 2, -27.8);        // swept up off the brow (a little lift)
+    ctx.quadraticCurveTo(-3, -28.5, -8.5, -24.5);      // over the crown to the back-top
+    ctx.quadraticCurveTo(-11, -20.5, -10, -16);        // down the back, hugging the skull
+    ctx.quadraticCurveTo(-9, -13.8, -6.8, -14.5);      // short back hairline, kept high (no flow)
+    ctx.quadraticCurveTo(-8.5, -18, -7, -21);          // inner edge up under the sweep
+    ctx.quadraticCurveTo(-2, -24, 2.5, -23.2);         // across the top of the forehead
+    ctx.quadraticCurveTo(4.5, -23, 5.5, -22);          // back to the front
+    ctx.closePath(); ctx.fill();
+    // raked-back strands for a little texture, kept tight to the head
+    ctx.strokeStyle = "#d3a93f"; ctx.lineWidth = 1; ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(4.5, -22.5); ctx.quadraticCurveTo(-2, -26, -8, -22.5);
+    ctx.moveTo(3.5, -21); ctx.quadraticCurveTo(-3, -23, -9, -19);
+    ctx.moveTo(1, -19.8); ctx.quadraticCurveTo(-3.5, -20.5, -8, -16.8);
+    ctx.stroke();
+    ctx.lineCap = "butt";
     // shades
     ctx.fillStyle = "#0a0a0c";
     ctx.beginPath(); ctx.roundRect(-1, -20, 6, 5, 2); ctx.fill();
@@ -2969,16 +3046,25 @@ function drawPlayerSprite(x, y, f) {
 
   // hair (player's choice)
   if (charCfg.hair === "FLOW") {
-    const wave = Math.sin(t * 0.15) * 2.5;
+    const wave = Math.sin(t * 0.15) * 1.4;
+    // curly flow peeking from the helmet, curling OUTWARD and stopping just below the shoulder
     ctx.fillStyle = "#f0c95c";
     ctx.beginPath();
-    ctx.moveTo(-7, -23);
-    ctx.quadraticCurveTo(-17, -16 + wave, -15, -3 + wave);
-    ctx.quadraticCurveTo(-13, 4 + wave * 0.5, -7, 2);
-    ctx.quadraticCurveTo(-12, -6, -9, -13);
+    ctx.moveTo(-6, -23);                                       // top, tucked behind the helmet
+    ctx.quadraticCurveTo(-13, -18, -12.5, -11 + wave * 0.3);   // down the back (outer edge)
+    ctx.quadraticCurveTo(-12.2, -7, -15.5, -4 + wave * 0.6);   // curl bumping outward
+    ctx.quadraticCurveTo(-17.5, -1 + wave, -15.5, 1.5 + wave); // tip flicks outward, away
+    ctx.quadraticCurveTo(-13.5, 0 + wave * 0.6, -11.5, -3 + wave * 0.3); // underside curl back up
+    ctx.quadraticCurveTo(-9.5, -7, -9, -11);                   // inner edge up
+    ctx.quadraticCurveTo(-8, -17, -6, -23);                    // back to the top
     ctx.closePath(); ctx.fill();
-    ctx.strokeStyle = "#d9a93a"; ctx.lineWidth = 1.5;
-    ctx.beginPath(); ctx.moveTo(-9, -19); ctx.quadraticCurveTo(-15, -10 + wave, -12, -1 + wave); ctx.stroke();
+    ctx.strokeStyle = "#d9a93a"; ctx.lineWidth = 1.5; ctx.lineCap = "round";
+    ctx.beginPath();                                           // curly inner strand
+    ctx.moveTo(-8, -17);
+    ctx.quadraticCurveTo(-12.5, -11 + wave * 0.4, -12.5, -6 + wave * 0.5);
+    ctx.quadraticCurveTo(-12.5, -2 + wave * 0.7, -14.5, 0 + wave);
+    ctx.stroke();
+    ctx.lineCap = "butt";
   } else if (charCfg.hair === "SHORT") {
     ctx.fillStyle = "#f0c95c";
     ctx.beginPath(); ctx.ellipse(-7, -10, 5, 3.5, 0.5, 0, 6.28); ctx.fill();
