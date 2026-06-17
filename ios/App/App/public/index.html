@@ -3035,17 +3035,45 @@ function drawPlayerSprite(x, y, f) {
   ctx.beginPath(); ctx.arc(18, -12, 3.5, 0, 6.28); ctx.fill();
   ctx.beginPath(); ctx.arc(16, 1, 3.5, 0, 6.28); ctx.fill();
 
-  // stick
-  ctx.strokeStyle = charCfg.stick; ctx.lineWidth = 4;
-  ctx.beginPath(); ctx.moveTo(12, 9); ctx.lineTo(25, -24); ctx.stroke();
-  ctx.strokeStyle = "#f0f0f0"; ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.ellipse(28, -31, 7, 11, 0.45, 0, 6.28); ctx.stroke();
-  ctx.strokeStyle = "#cfcfcf"; ctx.lineWidth = 1;
+  // stick — shaft runs up to the throat of a teardrop/scoop head (one piece).
+  // PURELY VISUAL: hitbox, collisions, shooting and movement are computed from
+  // player.x/player.y elsewhere and never read this drawing.
+  const thx = 25.5, thy = -24;                      // throat: where shaft meets head
+  ctx.strokeStyle = charCfg.stick; ctx.lineWidth = 4; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.moveTo(12, 9); ctx.lineTo(thx, thy); ctx.stroke();
+  ctx.lineCap = "butt";
+  ctx.save();
+  ctx.translate(thx, thy); ctx.rotate(0.375);       // local -y points up the head, along the shaft
+  // teardrop/scoop silhouette: narrow throat, gentle flare, soft middle indent, rounded scoop
+  const lacHead = () => {
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.quadraticCurveTo(5.4, -2.5, 5.6, -7);       // throat -> gentle flare out
+    ctx.quadraticCurveTo(4.6, -10.5, 4.8, -13.5);   // soft middle indent
+    ctx.quadraticCurveTo(5.4, -16.5, 7, -19);       // flare back out to the scoop
+    ctx.quadraticCurveTo(7.8, -22.5, 0, -24.5);     // round over the top
+    ctx.quadraticCurveTo(-7.8, -22.5, -7, -19);     // mirror back down the left side
+    ctx.quadraticCurveTo(-5.4, -16.5, -4.8, -13.5);
+    ctx.quadraticCurveTo(-4.6, -10.5, -5.6, -7);
+    ctx.quadraticCurveTo(-5.4, -2.5, 0, 0);
+    ctx.closePath();
+  };
+  // diamond net filling the whole head (clipped to the outline)
+  lacHead();
+  ctx.save(); ctx.clip();
+  ctx.strokeStyle = "#cfcfcf"; ctx.lineWidth = 0.7;
   ctx.beginPath();
-  ctx.moveTo(24, -37); ctx.lineTo(32, -25);
-  ctx.moveTo(32, -37); ctx.lineTo(24, -25);
-  ctx.moveTo(23, -31); ctx.lineTo(33, -31);
+  for (let k = -26; k <= 26; k += 4) {
+    ctx.moveTo(k, 3); ctx.lineTo(k + 30, -27);
+    ctx.moveTo(k, 3); ctx.lineTo(k - 30, -27);
+  }
   ctx.stroke();
+  ctx.restore();
+  // off-white rim on top
+  lacHead();
+  ctx.strokeStyle = "#f0f0f0"; ctx.lineWidth = 2; ctx.lineJoin = "round";
+  ctx.stroke();
+  ctx.restore();
 
   // hair (player's choice)
   if (charCfg.hair === "FLOW") {
