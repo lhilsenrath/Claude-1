@@ -2502,7 +2502,7 @@ function drawJetTop(x, y, s) {
   ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
   // two contrails trailing down from the two rear engines (behind the plane)
   ctx.fillStyle = "#ffffff";
-  for (const ex of [-6.5, 6.5]) {
+  for (const ex of [-5, 5]) {
     for (let i = 0; i < 8; i++) {
       const py = 17 + i * 6 + (t * 1.4 % 6);
       ctx.globalAlpha = Math.max(0, 0.5 - i * 0.062);
@@ -2518,20 +2518,20 @@ function drawJetTop(x, y, s) {
   ctx.fillStyle = "#dfe3e8";
   ctx.beginPath(); ctx.moveTo(-2, 13); ctx.lineTo(-12, 19); ctx.lineTo(-8, 20); ctx.lineTo(-2, 16); ctx.closePath(); ctx.fill();
   ctx.beginPath(); ctx.moveTo(2, 13); ctx.lineTo(12, 19); ctx.lineTo(8, 20); ctx.lineTo(2, 16); ctx.closePath(); ctx.fill();
-  // fuselage (nose up)
+  // fuselage (nose up) — a slim private-jet cabin
   ctx.fillStyle = "#f6f8fa";
   ctx.beginPath();
-  ctx.moveTo(0, -21); ctx.quadraticCurveTo(7, -10, 6.5, 4);
-  ctx.quadraticCurveTo(6, 17, 0, 21); ctx.quadraticCurveTo(-6, 17, -6.5, 4);
-  ctx.quadraticCurveTo(-7, -10, 0, -21); ctx.closePath(); ctx.fill();
+  ctx.moveTo(0, -21); ctx.quadraticCurveTo(5.2, -10, 4.8, 4);
+  ctx.quadraticCurveTo(4.4, 17, 0, 21); ctx.quadraticCurveTo(-4.4, 17, -4.8, 4);
+  ctx.quadraticCurveTo(-5.2, -10, 0, -21); ctx.closePath(); ctx.fill();
   ctx.strokeStyle = "#ccd1d7"; ctx.lineWidth = 1; ctx.stroke();
-  // two rear engines + exhaust
+  // two rear engines + exhaust, mounted on the aft fuselage
   ctx.fillStyle = "#9aa1a9";
-  ctx.beginPath(); ctx.ellipse(-6.5, 14, 2.4, 4, 0, 0, 6.28); ctx.fill();
-  ctx.beginPath(); ctx.ellipse(6.5, 14, 2.4, 4, 0, 0, 6.28); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(-5, 14, 2.2, 4, 0, 0, 6.28); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(5, 14, 2.2, 4, 0, 0, 6.28); ctx.fill();
   ctx.fillStyle = "#586069";
-  ctx.beginPath(); ctx.ellipse(-6.5, 17.5, 1.4, 1.8, 0, 0, 6.28); ctx.fill();
-  ctx.beginPath(); ctx.ellipse(6.5, 17.5, 1.4, 1.8, 0, 0, 6.28); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(-5, 17.5, 1.3, 1.8, 0, 0, 6.28); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(5, 17.5, 1.3, 1.8, 0, 0, 6.28); ctx.fill();
   // gold center stripe
   ctx.strokeStyle = "#caa23c"; ctx.lineWidth = 1.6;
   ctx.beginPath(); ctx.moveTo(0, -17); ctx.lineTo(0, 15); ctx.stroke();
@@ -2683,8 +2683,8 @@ function drawChariot(x, y, s) {
   ctx.lineTo(9, -3); ctx.quadraticCurveTo(12, -3, 12, 2); ctx.lineTo(11, 9); ctx.closePath(); ctx.fill();
   ctx.strokeStyle = "#8a5a2b"; ctx.lineWidth = 1.4; ctx.stroke();
   ctx.fillStyle = "#e8c96a"; ctx.fillRect(-12, -4, 24, 1.8);
-  // the horse team ahead (a touch larger), galloping
-  ctx.translate(11, 1); ctx.scale(1.1, 1.1);
+  // the horse team ahead (a bit larger), galloping
+  ctx.translate(11, 1); ctx.scale(1.3, 1.3);
   ctx.strokeStyle = "#7a5533"; ctx.lineWidth = 2; // hitch pole
   ctx.beginPath(); ctx.moveTo(0, 4); ctx.lineTo(16, 2); ctx.stroke();
   ctx.strokeStyle = "rgba(90,60,40,0.6)"; ctx.lineWidth = 1; // reins
