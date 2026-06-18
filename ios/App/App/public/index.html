@@ -3983,17 +3983,35 @@ function draw() {
 // were slowing the game down instead of staying constant).
 const STEP = 1000 / 60;
 let lastT = 0, acc = 0;
+// a thrown frame must never permanently freeze the game (e.g. an iOS WebKit
+// quirk): catch it, surface it on-screen, and always reschedule the loop.
+let _frameErr = "";
+function showFrameError(err) {
+  _frameErr = (err && err.message) ? err.message : String(err);
+  try {
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.fillStyle = "rgba(0,0,0,0.88)";
+    ctx.fillRect(0, 0, canvas.width, 80);
+    ctx.fillStyle = "#ff8080"; ctx.textAlign = "left";
+    ctx.font = "18px monospace"; ctx.fillText("game error:", 12, 28);
+    ctx.font = "15px monospace"; ctx.fillText(_frameErr.slice(0, 52), 12, 54);
+  } catch (e) {}
+}
 function loop(now) {
-  if (now === undefined) now = lastT + STEP;
-  let dt = now - lastT;
-  lastT = now;
-  if (dt < 0) dt = 0;
-  if (dt > 250) dt = 250; // tab was backgrounded; don't fast-forward
-  acc += dt * (SPEEDS[settings.speed] || 1);
-  let n = 0;
-  while (acc >= STEP && n < 5) { update(); acc -= STEP; n++; }
-  if (n === 5) acc = 0; // device can't catch up: drop the backlog, stay smooth
-  draw();
+  try {
+    if (now === undefined) now = lastT + STEP;
+    let dt = now - lastT;
+    lastT = now;
+    if (dt < 0) dt = 0;
+    if (dt > 250) dt = 250; // tab was backgrounded; don't fast-forward
+    acc += dt * (SPEEDS[settings.speed] || 1);
+    let n = 0;
+    while (acc >= STEP && n < 5) { update(); acc -= STEP; n++; }
+    if (n === 5) acc = 0; // device can't catch up: drop the backlog, stay smooth
+    draw();
+  } catch (err) {
+    showFrameError(err);
+  }
   requestAnimationFrame(loop);
 }
 reset();
