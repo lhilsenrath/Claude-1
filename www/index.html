@@ -2780,20 +2780,20 @@ function lacHeadPath() {
   ctx.quadraticCurveTo(-5.4, -2.5, 0, 0);
   ctx.closePath();
 }
-// A softened version of that silhouette (smoother sides, no middle indent),
-// used for the wide platforms — a gentler scoop that still reads as the same
-// head once it is stretched wider & shorter.
+// A platform-tuned lacrosse-head silhouette: a gentle (not severe) throat
+// indent and a fuller scooped top. Used for the wide platforms — reads as the
+// same head family once it is stretched wider & shorter.
 function softHeadPath() {
   ctx.beginPath();
   ctx.moveTo(0, 0);
-  ctx.quadraticCurveTo(5.8, -2.5, 6.2, -6);
-  ctx.quadraticCurveTo(6.6, -10, 6.8, -13.5);
-  ctx.quadraticCurveTo(7.1, -16.5, 7, -19);
-  ctx.quadraticCurveTo(7.2, -22.5, 0, -24.5);
-  ctx.quadraticCurveTo(-7.2, -22.5, -7, -19);
-  ctx.quadraticCurveTo(-7.1, -16.5, -6.8, -13.5);
-  ctx.quadraticCurveTo(-6.6, -10, -6.2, -6);
-  ctx.quadraticCurveTo(-5.8, -2.5, 0, 0);
+  ctx.quadraticCurveTo(5.4, -2.5, 5.6, -7);
+  ctx.quadraticCurveTo(5.2, -10.5, 5.4, -13.5);   // gentle throat indent
+  ctx.quadraticCurveTo(6.4, -16.5, 7.4, -19);     // flare out to a fuller scoop
+  ctx.quadraticCurveTo(8.4, -22.5, 0, -24.5);     // round over the scooped top
+  ctx.quadraticCurveTo(-8.4, -22.5, -7.4, -19);
+  ctx.quadraticCurveTo(-6.4, -16.5, -5.4, -13.5);
+  ctx.quadraticCurveTo(-5.2, -10.5, -5.6, -7);
+  ctx.quadraticCurveTo(-5.4, -2.5, 0, 0);
   ctx.closePath();
 }
 // Stroke that head silhouette (outline only — no mesh, no fill) centred on
