@@ -2760,6 +2760,40 @@ function drawCoin(c) {
   drawLaxBall(c.x, y + bob);
 }
 
+// The lacrosse-head silhouette (throat at 0,0; scoop pointing up toward -y).
+// Defined once and shared by the player, the defenders and the PE boss so their
+// stick heads use the exact same shape. Callers supply their own transform and
+// decide whether to add mesh/fill (the player does; the enemies don't).
+function lacHeadPath() {
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.quadraticCurveTo(5.4, -2.5, 5.6, -7);       // throat -> gentle flare out
+  ctx.quadraticCurveTo(4.6, -10.5, 4.8, -13.5);   // soft middle indent
+  ctx.quadraticCurveTo(5.4, -16.5, 7, -19);       // flare back out to the scoop
+  ctx.quadraticCurveTo(7.8, -22.5, 0, -24.5);     // round over the top
+  ctx.quadraticCurveTo(-7.8, -22.5, -7, -19);     // mirror back down the left side
+  ctx.quadraticCurveTo(-5.4, -16.5, -4.8, -13.5);
+  ctx.quadraticCurveTo(-4.6, -10.5, -5.6, -7);
+  ctx.quadraticCurveTo(-5.4, -2.5, 0, 0);
+  ctx.closePath();
+}
+// Stroke that head silhouette (outline only — no mesh, no fill) centred on
+// (cx,cy), `len` long, pointing along `ang`. Used for the defenders' and PE
+// boss's sticks so the head SHAPE matches the player's. The stroke is applied
+// after the transform so its width stays `lw` regardless of the head's scale
+// (matching the fixed-width outline the old ellipse heads used). Purely visual.
+function drawStickHead(cx, cy, ang, len, stroke, lw) {
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(ang);
+  const s = len / 24.5;            // canonical silhouette is 24.5 long
+  ctx.scale(s, s);
+  ctx.translate(0, 12.25);         // centre the head on (cx,cy)
+  lacHeadPath();
+  ctx.restore();
+  ctx.strokeStyle = stroke; ctx.lineWidth = lw; ctx.stroke();
+}
+
 function drawPlayerSprite(x, y, f) {
   ctx.save();
   ctx.translate(x, y);
@@ -3047,22 +3081,9 @@ function drawPlayerSprite(x, y, f) {
   ctx.beginPath(); ctx.arc(16, 1, 3.5, 0, 6.28); ctx.fill();
   ctx.save();
   ctx.translate(thx, thy); ctx.rotate(0.375); ctx.scale(0.82, 0.82); // smaller, better-proportioned head (visual only)
-  // teardrop/scoop silhouette: narrow throat, gentle flare, soft middle indent, rounded scoop
-  const lacHead = () => {
-    ctx.beginPath();
-    ctx.moveTo(0, 0);
-    ctx.quadraticCurveTo(5.4, -2.5, 5.6, -7);       // throat -> gentle flare out
-    ctx.quadraticCurveTo(4.6, -10.5, 4.8, -13.5);   // soft middle indent
-    ctx.quadraticCurveTo(5.4, -16.5, 7, -19);       // flare back out to the scoop
-    ctx.quadraticCurveTo(7.8, -22.5, 0, -24.5);     // round over the top
-    ctx.quadraticCurveTo(-7.8, -22.5, -7, -19);     // mirror back down the left side
-    ctx.quadraticCurveTo(-5.4, -16.5, -4.8, -13.5);
-    ctx.quadraticCurveTo(-4.6, -10.5, -5.6, -7);
-    ctx.quadraticCurveTo(-5.4, -2.5, 0, 0);
-    ctx.closePath();
-  };
+  // teardrop/scoop silhouette (shared lacHeadPath, so the enemies' sticks match)
   // diamond net filling the whole head (clipped to the outline)
-  lacHead();
+  lacHeadPath();
   ctx.save(); ctx.clip();
   ctx.strokeStyle = "#cfcfcf"; ctx.lineWidth = 0.7;
   ctx.beginPath();
@@ -3073,7 +3094,7 @@ function drawPlayerSprite(x, y, f) {
   ctx.stroke();
   ctx.restore();
   // off-white rim on top
-  lacHead();
+  lacHeadPath();
   ctx.strokeStyle = "#f0f0f0"; ctx.lineWidth = 2; ctx.lineJoin = "round";
   ctx.stroke();
   ctx.restore();
@@ -3423,8 +3444,8 @@ function drawDefender(d) {
   ctx.rotate(swing);
   ctx.strokeStyle = "#b5b5b5"; ctx.lineWidth = 4;
   ctx.beginPath(); ctx.moveTo(-32, 5); ctx.lineTo(32, -3); ctx.stroke();
-  ctx.strokeStyle = "#eee"; ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.ellipse(35, -4, 5, 8, 1.4, 0, 6.28); ctx.stroke();
+  // lacrosse head — same silhouette as the player's, outline only (no mesh/fill)
+  drawStickHead(35, -4, 1.4, 16, "#eee", 2);
   ctx.restore();
 
   // legs
@@ -3549,8 +3570,8 @@ function drawBoss() {
     ctx.beginPath(); ctx.moveTo(9, -3); ctx.lineTo(16, -10); ctx.stroke();
     ctx.strokeStyle = "#b5b5b5"; ctx.lineWidth = 3;
     ctx.beginPath(); ctx.moveTo(10, 8); ctx.lineTo(22, -22); ctx.stroke();
-    ctx.strokeStyle = "#eee"; ctx.lineWidth = 1.5;
-    ctx.beginPath(); ctx.ellipse(24, -27, 5, 8, 0.45, 0, 6.28); ctx.stroke();
+    // lacrosse head — same silhouette as the player's, outline only (no mesh/fill)
+    drawStickHead(24, -27, 0.45, 16, "#eee", 1.5);
     ctx.fillStyle = "#e3b491";
     ctx.beginPath(); ctx.arc(0, -17, 9.5, 0, 6.28); ctx.fill();
     ctx.fillStyle = "#9aa0a8";
