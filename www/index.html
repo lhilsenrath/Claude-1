@@ -3043,7 +3043,7 @@ function drawPlayerSprite(x, y, f) {
   ctx.beginPath(); ctx.moveTo(12, 9); ctx.lineTo(thx, thy); ctx.stroke();
   ctx.lineCap = "butt";
   ctx.save();
-  ctx.translate(thx, thy); ctx.rotate(0.375);       // local -y points up the head, along the shaft
+  ctx.translate(thx, thy); ctx.rotate(0.375); ctx.scale(0.82, 0.82); // smaller, better-proportioned head (visual only)
   // teardrop/scoop silhouette: narrow throat, gentle flare, soft middle indent, rounded scoop
   const lacHead = () => {
     ctx.beginPath();
@@ -3299,8 +3299,9 @@ function drawPlayer() {
       drawCashStack(0, 0);
       ctx.restore();
     } else {
+      // the loaded ball rests in the middle of the (smaller) head
       ctx.fillStyle = "#ffe34d";
-      ctx.beginPath(); ctx.arc(x + player.facing * 28, y - 31, 4.5, 0, 6.28); ctx.fill();
+      ctx.beginPath(); ctx.arc(x + player.facing * 29, y - 33.3, 4, 0, 6.28); ctx.fill();
       ctx.strokeStyle = "#c8a800"; ctx.lineWidth = 1; ctx.stroke();
     }
   }
