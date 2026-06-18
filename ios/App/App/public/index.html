@@ -1733,13 +1733,13 @@ function drawFarmScene() {
     ctx.beginPath(); ctx.arc(30 + i * 47 + hash(i) * 20, gy + 38 + hash(i + 9) * 28, 2.5, 0, 6.28); ctx.fill();
   }
 
-  // fence along the back
-  ctx.strokeStyle = "#8a5a2b"; ctx.lineWidth = 3;
+  // fence along the back (white so the brown rocking chair in front stays visible)
+  ctx.strokeStyle = "#f4f4ef"; ctx.lineWidth = 3;
   ctx.beginPath();
   ctx.moveTo(0, gy - 18); ctx.lineTo(W, gy - 18);
   ctx.moveTo(0, gy - 8); ctx.lineTo(W, gy - 8);
   ctx.stroke();
-  ctx.fillStyle = "#774e22";
+  ctx.fillStyle = "#dcd8cc";
   for (let x = 12; x < W; x += 46) ctx.fillRect(x, gy - 26, 5, 26);
 
   // the goose pen: a little fenced box where the flock lives
