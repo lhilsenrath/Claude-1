@@ -3302,9 +3302,10 @@ function drawPlayer() {
       drawCashStack(0, 0);
       ctx.restore();
     } else {
-      // the loaded ball rests in the middle of the (smaller) head
+      // the loaded ball rests in the middle of the (smaller) head, sitting
+      // clear of the rim (visual radius only — no gameplay/collision effect)
       ctx.fillStyle = "#ffe34d";
-      ctx.beginPath(); ctx.arc(x + player.facing * 29, y - 33.3, 4, 0, 6.28); ctx.fill();
+      ctx.beginPath(); ctx.arc(x + player.facing * 29, y - 33.3, 3.3, 0, 6.28); ctx.fill();
       ctx.strokeStyle = "#c8a800"; ctx.lineWidth = 1; ctx.stroke();
     }
   }
