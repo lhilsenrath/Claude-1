@@ -2292,15 +2292,21 @@ function drawPlatform(p) {
       }
     }
 
-    // stick head — same lacrosse-head silhouette as the player/enemies, but
-    // proportioned wider & shorter to suit the wide platform; outline only (no mesh)
+    // stick head — softened lacrosse-head silhouette (same family as the other
+    // heads, gentler curves), proportioned wider & shorter for the wide
+    // platform, with the mesh kept (clipped to the head)
     ctx.save();
-    ctx.translate(PLAT_W - 18, 9);   // throat at the shaft end, centred on the shaft
+    ctx.translate(PLAT_W - 16, 9);   // throat at the shaft end, centred on the shaft
     ctx.rotate(Math.PI / 2);         // lay the head on its side: scoop points out (+x)
-    ctx.scale(22 / 14, 18 / 24.5);   // wider across, shorter along the shaft
-    lacHeadPath();
+    ctx.scale(21 / 14, 16 / 24.5);   // wider across, shorter along the shaft
+    softHeadPath();
     ctx.restore();
     ctx.strokeStyle = "#8a8a8a"; ctx.lineWidth = 2; ctx.stroke();
+    ctx.save(); ctx.clip();          // mesh, clipped to fit the head
+    ctx.strokeStyle = "#c4c4c4"; ctx.lineWidth = 1;
+    for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.moveTo(PLAT_W - 13 + i * 5, -2); ctx.lineTo(PLAT_W - 13 + i * 5, 20); ctx.stroke(); }
+    ctx.beginPath(); ctx.moveTo(PLAT_W - 18, 9); ctx.lineTo(PLAT_W + 2, 9); ctx.stroke();
+    ctx.restore();
 
     // trampoline goal on net platforms
     if (p.type === "net") {
@@ -2772,6 +2778,22 @@ function lacHeadPath() {
   ctx.quadraticCurveTo(-5.4, -16.5, -4.8, -13.5);
   ctx.quadraticCurveTo(-4.6, -10.5, -5.6, -7);
   ctx.quadraticCurveTo(-5.4, -2.5, 0, 0);
+  ctx.closePath();
+}
+// A softened version of that silhouette (smoother sides, no middle indent),
+// used for the wide platforms — a gentler scoop that still reads as the same
+// head once it is stretched wider & shorter.
+function softHeadPath() {
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.quadraticCurveTo(5.8, -2.5, 6.2, -6);
+  ctx.quadraticCurveTo(6.6, -10, 6.8, -13.5);
+  ctx.quadraticCurveTo(7.1, -16.5, 7, -19);
+  ctx.quadraticCurveTo(7.2, -22.5, 0, -24.5);
+  ctx.quadraticCurveTo(-7.2, -22.5, -7, -19);
+  ctx.quadraticCurveTo(-7.1, -16.5, -6.8, -13.5);
+  ctx.quadraticCurveTo(-6.6, -10, -6.2, -6);
+  ctx.quadraticCurveTo(-5.8, -2.5, 0, 0);
   ctx.closePath();
 }
 // Stroke that head silhouette (outline only — no mesh, no fill) centred on
