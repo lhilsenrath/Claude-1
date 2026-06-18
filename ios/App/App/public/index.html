@@ -718,10 +718,15 @@ function tryShoot(cx, cy) {
 
 let touchDir = 0;
 window.addEventListener("touchstart", e => {
-  e.preventDefault(); // stops browsers firing a duplicate mouse event after the touch
-  isTouch = true;
   const tc = e.touches[0];
   const pt = canvasPoint(tc.clientX, tc.clientY);
+  // Ignore touches in the top/bottom safe-area bands (the dark letterbox outside
+  // the canvas, around the notch/Dynamic Island and the home-swipe bar). Only the
+  // gameplay area between them — canvas y in [0, H] — accepts input, so a swipe up
+  // from the home bar can't resume/steer/shoot; iOS handles the gesture instead.
+  if (pt.y < 0 || pt.y > H) return;
+  e.preventDefault(); // stops browsers firing a duplicate mouse event after the touch
+  isTouch = true;
   if (uiTap(pt.x, pt.y)) return;
   if (state !== "playing") { tryStart(); return; }
   if (phase === 4) { if (farmTap(pt.x, pt.y)) return; }
@@ -729,12 +734,17 @@ window.addEventListener("touchstart", e => {
   touchDir = tc.clientX < window.innerWidth / 2 ? -1 : 1;
 }, { passive: false });
 window.addEventListener("touchmove", e => {
-  if (e.touches.length) touchDir = e.touches[0].clientX < window.innerWidth / 2 ? -1 : 1;
+  if (!e.touches.length) { e.preventDefault(); return; }
+  const tc = e.touches[0];
+  const py = canvasPoint(tc.clientX, tc.clientY).y;
+  if (py < 0 || py > H) return; // touch in a safe-area band — leave it to iOS
+  touchDir = tc.clientX < window.innerWidth / 2 ? -1 : 1;
   e.preventDefault();
 }, { passive: false });
 window.addEventListener("touchend", e => { if (!e.touches.length) touchDir = 0; });
 window.addEventListener("mousedown", e => {
   const pt = canvasPoint(e.clientX, e.clientY);
+  if (pt.y < 0 || pt.y > H) return; // ignore the safe-area bands (consistent with touch)
   if (uiTap(pt.x, pt.y)) return;
   if (state !== "playing") { tryStart(); return; }
   if (phase === 4) farmTap(pt.x, pt.y);
