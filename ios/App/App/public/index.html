@@ -3039,9 +3039,12 @@ function drawPlayerSprite(x, y, f) {
   // PURELY VISUAL: hitbox, collisions, shooting and movement are computed from
   // player.x/player.y elsewhere and never read this drawing.
   const thx = 25.5, thy = -24;                      // throat: where shaft meets head
-  ctx.strokeStyle = charCfg.stick; ctx.lineWidth = 4; ctx.lineCap = "round";
-  ctx.beginPath(); ctx.moveTo(12, 9); ctx.lineTo(thx, thy); ctx.stroke();
+  ctx.strokeStyle = charCfg.stick; ctx.lineWidth = 3.2; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.moveTo(15, 4); ctx.lineTo(thx, thy); ctx.stroke();
   ctx.lineCap = "butt";
+  // bottom hand grips the shaft on top (re-drawn after the pole so it wraps it)
+  ctx.fillStyle = charCfg.gloves;
+  ctx.beginPath(); ctx.arc(16, 1, 3.5, 0, 6.28); ctx.fill();
   ctx.save();
   ctx.translate(thx, thy); ctx.rotate(0.375); ctx.scale(0.82, 0.82); // smaller, better-proportioned head (visual only)
   // teardrop/scoop silhouette: narrow throat, gentle flare, soft middle indent, rounded scoop
