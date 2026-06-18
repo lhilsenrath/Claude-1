@@ -2292,18 +2292,15 @@ function drawPlatform(p) {
       }
     }
 
-    // stick head
-    ctx.fillStyle = "#f7f7f7"; ctx.strokeStyle = "#8a8a8a"; ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(PLAT_W - 16, 1);
-    ctx.quadraticCurveTo(PLAT_W + 6, -3, PLAT_W + 2, 9);
-    ctx.quadraticCurveTo(PLAT_W + 6, 21, PLAT_W - 16, 17);
-    ctx.closePath(); ctx.stroke();
-    ctx.strokeStyle = "#c4c4c4"; ctx.lineWidth = 1;
-    for (let i = 0; i < 3; i++) {
-      ctx.beginPath(); ctx.moveTo(PLAT_W - 13 + i * 5, 2); ctx.lineTo(PLAT_W - 13 + i * 5, 16); ctx.stroke();
-    }
-    ctx.beginPath(); ctx.moveTo(PLAT_W - 14, 9); ctx.lineTo(PLAT_W + 1, 9); ctx.stroke();
+    // stick head — same lacrosse-head silhouette as the player/enemies, but
+    // proportioned wider & shorter to suit the wide platform; outline only (no mesh)
+    ctx.save();
+    ctx.translate(PLAT_W - 18, 9);   // throat at the shaft end, centred on the shaft
+    ctx.rotate(Math.PI / 2);         // lay the head on its side: scoop points out (+x)
+    ctx.scale(22 / 14, 18 / 24.5);   // wider across, shorter along the shaft
+    lacHeadPath();
+    ctx.restore();
+    ctx.strokeStyle = "#8a8a8a"; ctx.lineWidth = 2; ctx.stroke();
 
     // trampoline goal on net platforms
     if (p.type === "net") {
