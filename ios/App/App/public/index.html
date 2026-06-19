@@ -3487,6 +3487,8 @@ function drawDefender(d) {
   // jersey
   ctx.fillStyle = GRADS.defJersey;
   ctx.beginPath(); ctx.roundRect(-11, -7, 22, 21, 5); ctx.fill();
+  ctx.fillStyle = "#fff"; // white collar strip at the top (like the player's)
+  ctx.fillRect(-11, -5, 22, 2.5);
 
   // helmet — identical to the player's, in black to match the jersey
   drawLaxHelmet("#1a1a1a");
