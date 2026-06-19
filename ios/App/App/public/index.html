@@ -88,6 +88,7 @@ const GRADS = (() => {
     platWood:   mk(5, 14, "#b07a40", "#7c4f22"),
     jersey:     mk(-10, 10, "#e8433a", "#b3221b"),
     defJersey:  mk(-8, 14, "#2c2c2c", "#070707"),
+    defShorts:  mk(4, 14, "#1f1f1f", "#0a0a0a"),
     gold:       mk(4, 15, "#f7e08a", "#b8860b"),
     platinum:   mk(4, 15, "#f4f6fa", "#9aa3b2"),
     junk:       mk(4, 15, "#d8d8de", "#b6b6be"),
@@ -3479,16 +3480,23 @@ function drawDefender(d) {
   // legs
   ctx.strokeStyle = "#e8b88a"; ctx.lineWidth = 4;
   ctx.beginPath(); ctx.moveTo(-4, 14); ctx.lineTo(-7, 22); ctx.moveTo(4, 14); ctx.lineTo(7, 22); ctx.stroke();
+  // white socks (like the player's)
+  ctx.strokeStyle = "#fff"; ctx.lineWidth = 4;
+  ctx.beginPath(); ctx.moveTo(-5.5, 18); ctx.lineTo(-6.6, 21); ctx.moveTo(5.5, 18); ctx.lineTo(6.6, 21); ctx.stroke();
   // black shoes
   ctx.fillStyle = "#111";
   ctx.beginPath(); ctx.roundRect(-11, 21, 7, 4, 2); ctx.fill();
   ctx.beginPath(); ctx.roundRect(4, 21, 7, 4, 2); ctx.fill();
 
-  // jersey
+  // shorts (black) — drawn first so the jersey sits on top; kept short and high so
+  // the defender's (shorter) legs aren't cut off — proportional to the player
+  ctx.fillStyle = GRADS.defShorts;
+  ctx.beginPath(); ctx.roundRect(-10, 4, 20, 10, 3); ctx.fill();
+  // jersey (black) — top at -9 so the collar tucks under the helmet (no number)
   ctx.fillStyle = GRADS.defJersey;
-  ctx.beginPath(); ctx.roundRect(-11, -7, 22, 21, 5); ctx.fill();
-  ctx.fillStyle = "#fff"; // white collar strip at the top (like the player's)
-  ctx.fillRect(-11, -5, 22, 2.5);
+  ctx.beginPath(); ctx.roundRect(-11, -9, 22, 16, 5); ctx.fill();
+  ctx.fillStyle = "#fff"; // white collar strip, 2px below the top (like the player's)
+  ctx.fillRect(-11, -7, 22, 2.5);
 
   // helmet — identical to the player's, in black to match the jersey
   drawLaxHelmet("#1a1a1a");
