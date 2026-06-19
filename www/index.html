@@ -2302,21 +2302,23 @@ function drawPlatform(p) {
       }
     }
 
-    // stick head — softened lacrosse-head silhouette (same family as the other
-    // heads, gentler curves), proportioned wider & shorter for the wide
-    // platform, with the mesh kept (clipped to the head)
+    // stick head — the player's lacrosse-head silhouette + diamond net, so it
+    // matches the player's stick; proportioned for the wide platform and kept in
+    // the platform's original grey (outline #8a8a8a, mesh #c4c4c4).
     ctx.save();
     ctx.translate(PLAT_W - 16, 9);   // throat at the shaft end, centred on the shaft
     ctx.rotate(Math.PI / 2);         // lay the head on its side: scoop points out (+x)
-    ctx.scale(21 / 14, 16 / 24.5);   // wider across, shorter along the shaft
-    softHeadPath();
+    ctx.scale(15 / 14, 19 / 24.5);   // a touch wider & shorter to suit the platform
+    lacHeadPath();
+    ctx.save(); ctx.clip();          // diamond net — same pattern as the player, grey
+    ctx.strokeStyle = "#c4c4c4"; ctx.lineWidth = 0.7;
+    ctx.beginPath();
+    for (let k = -26; k <= 26; k += 4) { ctx.moveTo(k, 3); ctx.lineTo(k + 30, -27); ctx.moveTo(k, 3); ctx.lineTo(k - 30, -27); }
+    ctx.stroke();
     ctx.restore();
-    ctx.strokeStyle = "#8a8a8a"; ctx.lineWidth = 2; ctx.stroke();
-    ctx.save(); ctx.clip();          // mesh, clipped to fit the head
-    ctx.strokeStyle = "#c4c4c4"; ctx.lineWidth = 1;
-    for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.moveTo(PLAT_W - 13 + i * 5, -2); ctx.lineTo(PLAT_W - 13 + i * 5, 20); ctx.stroke(); }
-    ctx.beginPath(); ctx.moveTo(PLAT_W - 18, 9); ctx.lineTo(PLAT_W + 2, 9); ctx.stroke();
+    lacHeadPath();
     ctx.restore();
+    ctx.strokeStyle = "#8a8a8a"; ctx.lineWidth = 2; ctx.lineJoin = "round"; ctx.stroke();
 
     // trampoline goal on net platforms
     if (p.type === "net") {
@@ -2787,22 +2789,6 @@ function lacHeadPath() {
   ctx.quadraticCurveTo(-7.8, -22.5, -7, -19);     // mirror back down the left side
   ctx.quadraticCurveTo(-5.4, -16.5, -4.8, -13.5);
   ctx.quadraticCurveTo(-4.6, -10.5, -5.6, -7);
-  ctx.quadraticCurveTo(-5.4, -2.5, 0, 0);
-  ctx.closePath();
-}
-// A platform-tuned lacrosse-head silhouette: a gentle (not severe) throat
-// indent and a fuller scooped top. Used for the wide platforms — reads as the
-// same head family once it is stretched wider & shorter.
-function softHeadPath() {
-  ctx.beginPath();
-  ctx.moveTo(0, 0);
-  ctx.quadraticCurveTo(5.4, -2.5, 5.6, -7);
-  ctx.quadraticCurveTo(5.2, -10.5, 5.4, -13.5);   // gentle throat indent
-  ctx.quadraticCurveTo(6.4, -16.5, 7.4, -19);     // flare out to a fuller scoop
-  ctx.quadraticCurveTo(8.4, -22.5, 0, -24.5);     // round over the scooped top
-  ctx.quadraticCurveTo(-8.4, -22.5, -7.4, -19);
-  ctx.quadraticCurveTo(-6.4, -16.5, -5.4, -13.5);
-  ctx.quadraticCurveTo(-5.2, -10.5, -5.6, -7);
   ctx.quadraticCurveTo(-5.4, -2.5, 0, 0);
   ctx.closePath();
 }
