@@ -632,9 +632,9 @@ function settingsTap(px, py) {
   if (row >= 0) { savePrefs(); SND.coin(); }
 }
 
-const CHAR_ROWS = [238, 274, 310, 346, 382, 418, 454, 490];
+const CHAR_ROWS = [268, 304, 340, 376, 412, 448, 484, 520];
 function characterTap(px, py) {
-  if (py > 520 && py < 568) { savePrefs(); state = "title"; return; }
+  if (py > 550 && py < 598) { savePrefs(); state = "title"; return; }
   let row = -1;
   for (let i = 0; i < CHAR_ROWS.length; i++) if (Math.abs(py - CHAR_ROWS[i]) < 17) row = i;
   if (row < 0) return;
@@ -3108,9 +3108,9 @@ function drawPlayerSprite(x, y, f) {
   }
   ctx.stroke();
   ctx.restore();
-  // off-white rim on top
+  // rim on top — follows the chosen stick colour (mesh stays constant)
   lacHeadPath();
-  ctx.strokeStyle = "#f0f0f0"; ctx.lineWidth = 2; ctx.lineJoin = "round";
+  ctx.strokeStyle = charCfg.stick; ctx.lineWidth = 2; ctx.lineJoin = "round";
   ctx.stroke();
   ctx.restore();
 
@@ -3845,7 +3845,7 @@ function charRow(y, label, value, swatch) {
 function drawCharacter() {
   menuPanel("YOUR PLAYER");
   ctx.save();
-  ctx.translate(W / 2 - 10, 158);
+  ctx.translate(W / 2 - 10, 188);
   ctx.scale(1.85, 1.85);
   drawPlayerSprite(0, 0, 1);
   ctx.restore();
@@ -3857,7 +3857,7 @@ function drawCharacter() {
   charRow(CHAR_ROWS[5], "STICK", charCfg.stick, true);
   charRow(CHAR_ROWS[6], "SHORTS", charCfg.shorts, true);
   charRow(CHAR_ROWS[7], "SHOES", charCfg.shoes, true);
-  doneButton(540);
+  doneButton(570);
 }
 
 function drawPaused() {
