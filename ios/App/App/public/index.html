@@ -152,6 +152,16 @@ function initAudio() {
     if (actx.resume) actx.resume();
   } catch (e) { actx = null; }
 }
+// If iOS suspended the AudioContext while the app was backgrounded, resume it
+// when the player returns to the foreground so music/audio keeps playing.
+// Resume-only: during normal play the context is "running", so this never fires.
+document.addEventListener("visibilitychange", () => {
+  try {
+    if (document.visibilityState === "visible" && actx && actx.state === "suspended") {
+      actx.resume();
+    }
+  } catch (e) {}
+});
 function tone(freq, dur, type, vol, slide) {
   if (!actx) return;
   try {
