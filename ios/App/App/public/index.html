@@ -3498,8 +3498,11 @@ function drawDefender(d) {
   ctx.fillStyle = "#fff"; // white collar strip, 2px below the top (like the player's)
   ctx.fillRect(-11, -7, 22, 2.5);
 
-  // helmet — identical to the player's, in black to match the jersey
+  // helmet — the player's helmet in black, scaled a touch smaller to match the
+  // defender's slightly smaller body (scaled about the neck so the collar stays tucked)
+  ctx.save(); ctx.translate(0, -7); ctx.scale(0.9, 0.9); ctx.translate(0, 7);
   drawLaxHelmet("#1a1a1a");
+  ctx.restore();
 
   // red target reticle — tap to shoot when you have a ball loaded
   const pulse = 0.45 + 0.3 * Math.sin(t * 0.18);
