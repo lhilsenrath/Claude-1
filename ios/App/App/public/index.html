@@ -87,7 +87,7 @@ const GRADS = (() => {
     platMoving: mk(5, 14, "#6aa9ee", "#2c66bd"),
     platWood:   mk(5, 14, "#b07a40", "#7c4f22"),
     jersey:     mk(-10, 10, "#e8433a", "#b3221b"),
-    defJersey:  mk(-8, 14, "#33508f", "#16244a"),
+    defJersey:  mk(-8, 14, "#2c2c2c", "#070707"),
     gold:       mk(4, 15, "#f7e08a", "#b8860b"),
     platinum:   mk(4, 15, "#f4f6fa", "#9aa3b2"),
     junk:       mk(4, 15, "#d8d8de", "#b6b6be"),
@@ -3471,8 +3471,8 @@ function drawDefender(d) {
   // long defensive pole (swinging)
   ctx.save();
   ctx.rotate(swing);
-  ctx.strokeStyle = "#b5b5b5"; ctx.lineWidth = 4;
-  ctx.beginPath(); ctx.moveTo(-32, 5); ctx.lineTo(32, -3); ctx.stroke();
+  ctx.strokeStyle = "#9a9a9a"; ctx.lineWidth = 4;
+  ctx.beginPath(); ctx.moveTo(-32, 5); ctx.lineTo(28, -2.7); ctx.stroke(); // ends at the head's throat
   // lacrosse head — same silhouette as the player's, outline only (no mesh/fill)
   drawStickHead(35, -4, 1.4, 16, "#eee", 2);
   ctx.restore();
@@ -3480,6 +3480,10 @@ function drawDefender(d) {
   // legs
   ctx.strokeStyle = "#e8b88a"; ctx.lineWidth = 4;
   ctx.beginPath(); ctx.moveTo(-4, 14); ctx.lineTo(-7, 22); ctx.moveTo(4, 14); ctx.lineTo(7, 22); ctx.stroke();
+  // black shoes
+  ctx.fillStyle = "#111";
+  ctx.beginPath(); ctx.roundRect(-11, 21, 7, 4, 2); ctx.fill();
+  ctx.beginPath(); ctx.roundRect(4, 21, 7, 4, 2); ctx.fill();
 
   // jersey
   ctx.fillStyle = GRADS.defJersey;
