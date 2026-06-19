@@ -2792,12 +2792,12 @@ function lacHeadPath() {
   ctx.quadraticCurveTo(-5.4, -2.5, 0, 0);
   ctx.closePath();
 }
-// Stroke that head silhouette (outline only — no mesh, no fill) centred on
-// (cx,cy), `len` long, pointing along `ang`. Used for the defenders' and PE
-// boss's sticks so the head SHAPE matches the player's. The stroke is applied
-// after the transform so its width stays `lw` regardless of the head's scale
-// (matching the fixed-width outline the old ellipse heads used). Purely visual.
-function drawStickHead(cx, cy, ang, len, stroke, lw) {
+// Stroke that head silhouette centred on (cx,cy), `len` long, pointing along
+// `ang`. Used for the defenders' and PE boss's sticks so the head SHAPE matches
+// the player's. The outline stroke is applied after the transform so its width
+// stays `lw` regardless of the head's scale. If `mesh` is given, a diamond net
+// (same pattern as the player/platform heads) is clipped inside it. Purely visual.
+function drawStickHead(cx, cy, ang, len, stroke, lw, mesh) {
   ctx.save();
   ctx.translate(cx, cy);
   ctx.rotate(ang);
@@ -2805,6 +2805,15 @@ function drawStickHead(cx, cy, ang, len, stroke, lw) {
   ctx.scale(s, s);
   ctx.translate(0, 12.25);         // centre the head on (cx,cy)
   lacHeadPath();
+  if (mesh) {                      // diamond net, clipped to the head
+    ctx.save(); ctx.clip();
+    ctx.strokeStyle = mesh; ctx.lineWidth = 0.7;
+    ctx.beginPath();
+    for (let k = -26; k <= 26; k += 4) { ctx.moveTo(k, 3); ctx.lineTo(k + 30, -27); ctx.moveTo(k, 3); ctx.lineTo(k - 30, -27); }
+    ctx.stroke();
+    ctx.restore();
+    lacHeadPath();                 // rebuild the outline path for the stroke below
+  }
   ctx.restore();
   ctx.strokeStyle = stroke; ctx.lineWidth = lw; ctx.stroke();
 }
@@ -3459,8 +3468,8 @@ function drawDefender(d) {
   ctx.rotate(swing);
   ctx.strokeStyle = "#9a9a9a"; ctx.lineWidth = 4;
   ctx.beginPath(); ctx.moveTo(-32, 5); ctx.lineTo(28, -2.7); ctx.stroke(); // ends at the head's throat
-  // lacrosse head — same silhouette as the player's, outline only (no mesh/fill)
-  drawStickHead(35, -4, 1.4, 16, "#eee", 2);
+  // lacrosse head — same silhouette + diamond mesh as the player's
+  drawStickHead(35, -4, 1.4, 16, "#eee", 2, "#cfcfcf");
   ctx.restore();
 
   // legs
@@ -3586,9 +3595,9 @@ function drawBoss() {
     ctx.strokeStyle = "#15151b"; ctx.lineWidth = 4;
     ctx.beginPath(); ctx.moveTo(9, -3); ctx.lineTo(16, -10); ctx.stroke();
     ctx.strokeStyle = "#b5b5b5"; ctx.lineWidth = 3;
-    ctx.beginPath(); ctx.moveTo(10, 8); ctx.lineTo(22, -22); ctx.stroke();
-    // lacrosse head — same silhouette as the player's, outline only (no mesh/fill)
-    drawStickHead(24, -27, 0.45, 16, "#eee", 1.5);
+    ctx.beginPath(); ctx.moveTo(10, 8); ctx.lineTo(21, -20.7); ctx.stroke(); // ends at the head's throat
+    // lacrosse head — same silhouette + diamond mesh as the player's
+    drawStickHead(24, -27, 0.45, 16, "#eee", 1.5, "#cfcfcf");
     ctx.fillStyle = "#e3b491";
     ctx.beginPath(); ctx.arc(0, -17, 9.5, 0, 6.28); ctx.fill();
     ctx.fillStyle = "#9aa0a8";
